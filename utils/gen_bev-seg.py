@@ -12,7 +12,7 @@ PIXELS_PER_METER = 4
 ZOOM_IN_PEDESTRIAN = 4
 
 root_dir = "/media/waywaybao_cs10/DATASET/RiskBench_Dataset"
-data_type = ["interactive", "non-interactive", "obstacle", "collision"][1:3]
+data_type = ["interactive", "non-interactive", "obstacle", "collision"][:]
 
 
 def preprocess_semantic(topdown):
@@ -190,9 +190,9 @@ def gen_BEV(variant_path, frame, Town, data_type="interactive"):
     # return topdown.astype(np.bool_)
 
 
-def main(sample_list, cpu_id):
+def main(scenario_list, cpu_id):
     
-    for _type, basic, variant, town in sample_list:
+    for _type, basic, variant, town in scenario_list:
 
         variant_dir = os.path.join(data_root, basic, "variant_scenario", variant)
         N = len(os.listdir(variant_dir+"/ego_data"))
@@ -209,7 +209,7 @@ def main(sample_list, cpu_id):
             np.save(save_dir+f"/{frame_id:08d}.npy", bev_seg)
 
         print(
-            f"CPU ID: {cpu_id:3d}\t{basic}_{variant}\t Done!")
+            f"CPU ID: {cpu_id:3d}\t{_type}\t{basic}_{variant}\t Done!")
 
 
 if __name__ == '__main__':
@@ -218,12 +218,11 @@ if __name__ == '__main__':
 
         data_root = os.path.join(root_dir, _type)
         target_root = os.path.join("/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
-        sample_list = []
+        scenario_list = []
 
         for basic in sorted(os.listdir(data_root)):
             town = basic[:2]
             if town == '10':
-                continue
                 town = 'Town10HD'                
             elif town in ["1_", "2_", "3_", "5_", "6_", "7_"]:
                 town = f'Town0{town[0]}'
@@ -231,24 +230,19 @@ if __name__ == '__main__':
             basic_path = os.path.join(data_root, basic, "variant_scenario")
 
             for variant in sorted(os.listdir(basic_path)):
-                # if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
-                #     continue
-                # if not (basic == "A6_r-1_0_p_j_gr_1_j" and variant == "CloudySunset_high_"):
-                #     continue
-                # print(_type, basic, variant)
-                sample_list.append([_type, basic, variant, town])
+                scenario_list.append([_type, basic, variant, town])
 
-        # main(sample_list[0:2000], 0)
+        # main(scenario_list, 0)
 
         from multiprocessing import Pool
         from multiprocessing import cpu_count
 
         cpu_n = 15
-        variant_per_cpu = len(sample_list)//cpu_n+1
+        variant_per_cpu = len(scenario_list)//cpu_n+1
         pool_sz = cpu_count()
 
         with Pool(pool_sz) as p:
-            res = p.starmap(main, [(sample_list[i*variant_per_cpu:i*variant_per_cpu+variant_per_cpu], i)
+            res = p.starmap(main, [(scenario_list[i*variant_per_cpu:i*variant_per_cpu+variant_per_cpu], i)
                             for i in range(cpu_n)])
             p.close()
             p.join()

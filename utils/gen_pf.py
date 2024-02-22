@@ -15,7 +15,7 @@ data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
 IMG_W = 200
 
-save_img = True
+save_img = False
 SAVE_PF = False
 
 PIX_PER_METER = 4       # fixed
@@ -170,36 +170,12 @@ def draw_heatmap(data):
     return data
 
 
-def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
-
-    data_root = os.path.join(
-        "/media/waywaybao_cs10/DATASET/RiskBench_Dataset", _type)
-    save_root = os.path.join(
-        f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
-    skip_list = json.load(open("./skip_scenario.json"))
-    goal_list = json.load(open("./goal_list.json"))
-
-    scenario_list = []
-
-    for basic in sorted(os.listdir(data_root)):
-        if not basic[:2] in town:
-            continue
-
-        basic_path = os.path.join(data_root, basic, "variant_scenario")
-
-        for variant in sorted(os.listdir(basic_path)):
-            if [_type, basic, variant] in skip_list:
-                continue
-            if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
-                continue
-            # if not (basic == "1_s-4_0_m_l_f_1_s" and variant == "CloudySunset_low_"):
-            #     continue
-            scenario_list.append((basic, variant))
+def main(_type, scenario_list, cpu_id=0):
     
 
     total_start = time.time()
 
-    for idx, (basic, variant) in enumerate(sorted(scenario_list)[st:ed], 1):
+    for idx, (basic, variant) in enumerate(sorted(scenario_list), 1):
 
         basic_path = os.path.join(data_root, basic, "variant_scenario")
         variant_path = os.path.join(basic_path, variant)
@@ -230,8 +206,8 @@ def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
             frame_id = int(frame.split('.')[0])
             
             # print(basic, variant, frame)
-            if frame_id != 39:
-                continue
+            # if frame_id != 39:
+            #     continue
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
             # if os.path.isfile(save_npy_path):
             #     continue
@@ -314,7 +290,7 @@ def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
 
         end = time.time()
         print(
-            f"cpu:{cpu_id:2d}\t{st+idx:3d}/{ed:3d}\t{_type+'_'+basic+'_'+variant}\ttime: {end-start:.2f}s")
+            f"cpu:{cpu_id:2d}\t{idx:3d}/{len(scenario_list):3d}\t{_type+'_'+basic+'_'+variant}\ttime: {end-start:.2f}s")
 
     total_end = time.time()
     print(
@@ -323,21 +299,45 @@ def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
 
 if __name__ == '__main__':
 
-    from multiprocessing import Pool
-    from multiprocessing import cpu_count
-
+    goal_list = json.load(open("./goal_list.json"))
     train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
     test_town = ["10", "A6", "B3"]   # 515, (47, 11)
     town = train_town+test_town
-    cpu_n = 1
-    variant_per_cpu = 1865    ###
 
     for _type in data_type:
+
+        data_root = os.path.join(
+            "/media/waywaybao_cs10/DATASET/RiskBench_Dataset", _type)
+        save_root = os.path.join(
+            f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
+        scenario_list = []
+
+        for basic in sorted(os.listdir(data_root)):
+            if not basic[:2] in town:
+                continue
+
+            basic_path = os.path.join(data_root, basic, "variant_scenario")
+
+            for variant in sorted(os.listdir(basic_path)):
+                # if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
+                #     continue
+                # if not (basic == "1_s-4_0_m_l_f_1_s" and variant == "CloudySunset_low_"):
+                #     continue
+                scenario_list.append((basic, variant))
+
+        main(_type, scenario_list)
+
+        # from multiprocessing import Pool
+        # from multiprocessing import cpu_count
+
+        # cpu_n = 15
+        # variant_per_cpu = len(scenario_list)//cpu_n+1
+        # pool_sz = cpu_count()
 
         # pool_sz = cpu_count()
 
         # with Pool(pool_sz) as p:
-        #     res = p.starmap(main, [(_type, i*variant_per_cpu, i*variant_per_cpu+variant_per_cpu, town, i)
+        #     res = p.starmap(main, [(_type, scenario_list[i*variant_per_cpu:i*variant_per_cpu+variant_per_cpu], i)
         #                     for i in range(cpu_n)])
         #     # for ret in res:
         #     #     print(res)
@@ -345,4 +345,3 @@ if __name__ == '__main__':
         #     p.close()
         #     p.join()
 
-        main(_type, 0, 1865, town)

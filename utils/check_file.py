@@ -2,10 +2,20 @@ import os
 import json
 import random
 
-data_type = ["interactive", "non-interactive", "obstacle", "collision"][0:3]
+data_type = ["interactive", "non-interactive", "obstacle", "collision"][0:4]
 undone_list = []
-is_file = True
-tgt_name = "bev_box.json"
+
+train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
+test_town = ["10", "A6", "B3"]   # 515, (47, 11)
+
+is_file = False
+tgt_name = "bev-seg"
+town = train_town+test_town
+
+# is_file = True
+# tgt_name = "bev_box.json"
+# town = train_town+test_town
+
 
 def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
 
@@ -13,8 +23,8 @@ def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
         "/media/waywaybao_cs10/DATASET/RiskBench_Dataset", _type)
     tgt_root = os.path.join(
         "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
-    skip_list = json.load(open(
-        "/home/waywaybao_cs10/Desktop/RiskBench_two-stage/datasets/skip_scenario.json"))
+    # tgt_root = os.path.join(
+    #     "/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
 
     basic_variant_list = []
     basic_cnt, variant_cnt = 0, 0
@@ -59,26 +69,22 @@ def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
         if miss_tgt:
             undone += 1
             # print(basic, variant, f"{tgt_N}/{TOTAL_N}")
-            undone_list.append([basic, variant])
+            undone_list.append([_type, basic, variant])
 
 
-    print(f"CPU ID:{cpu_id:3d}\t{st:4d}-{ed:4d}\tUndone: {undone:3d}")
+    print(f"{_type}\tCPU ID:{cpu_id:3d}\t{st:4d}-{ed:4d}\tUndone: {undone:3d}")
 
 
 if __name__ == '__main__':
 
-    train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
-    test_town = ["10", "A6", "B3"]   # 515, (47, 11)
-    town = train_town
     cpu_n = 1
-    variant_per_cpu = 2000
+    variant_per_cpu = 3000
     
     for _type in data_type:
-
         for cpu_id in range(cpu_n):
             main(_type, cpu_id*variant_per_cpu, cpu_id*variant_per_cpu+variant_per_cpu, town, cpu_id)
     
-    print(f'Undone: {len(undone_list)}')
+    print(f'Total Undone: {len(undone_list)}')
     # random.shuffle(undone_list)
     # with open('undone_list.json', 'w') as f:
     #     json.dump(undone_list, f, indent=4)
