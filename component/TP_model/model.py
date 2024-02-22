@@ -3,15 +3,15 @@ import torch.nn as nn
 
      
 class TP_MODEL(nn.Module):
-    def __init__(self, out_dim=32, time_step=5):
+    def __init__(self, in_dim=5, out_dim=32, time_step=5):
         super(TP_MODEL, self).__init__()
 
         self.time_step = time_step
-        self.fusion_size = 8*16
+        self.fusion_size = 8*16*out_dim
         self.hidden_size = 512
 
         self.img_encoder = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(in_dim, 16, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
@@ -58,20 +58,19 @@ class TP_MODEL(nn.Module):
         B, T, C, H, W = seg_inputs.shape
 
         # initialize LSTM
-        hx = torch.zeros((B, self.hidden_size))
-        cx = torch.zeros((B, self.hidden_size))
+        hx = torch.zeros((B, self.hidden_size)).to('cuda')
+        cx = torch.zeros((B, self.hidden_size)).to('cuda')
         
         seg_inputs = seg_inputs.reshape(-1, C, H, W)
-        global_feature = self.img_encoder(seg_inputs)
-        seg_inputs = seg_inputs.reshape(B, T, C, H, W)
+        global_features = self.img_encoder(seg_inputs)
+        global_features = global_features.reshape(B, T, -1)
 
-        for t in range(0, self.time_step):
-            global_feature = global_feature[:, t].clone()
-            global_feature = global_feature.reshape(B, -1)
+        for t in range(self.time_step):
+            feature = global_features[:, t].clone()
 
             # LSTM
-            hx, cx = self.lstm(self.drop(global_feature), (hx, cx))
+            feature = self.drop(feature)
+            hx, cx = self.lstm(feature, (hx, cx))
 
         pred_tp = self.tp_predictor(hx)
-
         return pred_tp

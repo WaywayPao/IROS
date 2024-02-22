@@ -17,15 +17,16 @@ def create_folder(args):
     year, month, day, hour, minute, second = get_current_time()
     formated_time = f"{year}-{month}-{day}_{hour:02d}{minute:02d}{second:02d}"
 
-    args.ckpts = f'{args.ckpts}/{formated_time}'
+    args.ckpts_path = f'{args.ckpts_root}/{formated_time}'
     # args.log_dir = f'{args.log_dir}/{formated_time}'
-    args.results = f'{args.results}/{formated_time}.json'
+    args.results_path = f'{args.results_root}/{formated_time}'
 
-    os.makedirs(f'{args.ckpts}')
+    os.makedirs(f'{args.ckpts_path}')
     # os.makedirs(f'{args.log_dir}')
+    os.makedirs(f'{args.results_path}')
 
     logs = {"args": vars(args).copy()}
-    with open(args.results, "w") as f:
+    with open(args.results_path+'/result.json', "w") as f:
         json.dump([logs], f, indent=4)
 
 
@@ -41,14 +42,18 @@ def count_parameters(model):
 
 def write_result(args, epoch, logs):
 
+    json_result_path = os.path.join(args.results_path, f"result.json")
+    
     # save training logs in json type
-    history_result = json.load(open(args.results))
-    history_result.append(logs)
+    history_results = json.load(open(json_result_path))
+    history_results.append(logs)
 
-    with open(args.results, "w") as f:
-        json.dump(history_result, f, indent=4)
+    with open(json_result_path, "w") as f:
+        json.dump(history_results, f, indent=4)
 
     print(f"lr: {logs['lr']}")
-    print(f"train Loss: {logs['loss']['train_loss']:.10f}")
+    print(f"train Loss: {logs['loss']['train']:.10f}")
     print(f"validation Loss: {logs['loss']['validation']:.10f}")
     print("")
+
+    return history_results

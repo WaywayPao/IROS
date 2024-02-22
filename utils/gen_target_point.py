@@ -4,17 +4,16 @@ import time
 import json
 from collections import OrderedDict
 
-data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
+data_type = ['interactive', 'non-interactive', 'obstacle', 'collision'][:3]
 IMG_H = 100
 IMG_W = 200
 
-SAVE_JSON = True
+SAVE_JSON = False
 EGO_TARGET_FRAME = 60   # fixed
 PIX_PER_METER = 4       # fixed
 sx = IMG_W//2
 sy = 3*PIX_PER_METER    # the distance from the ego's center to his head
 
-goal_list = OrderedDict()
 
 def get_target_point(egos_data, cur_frame_id, N, R, ego_loc):
 
@@ -49,23 +48,9 @@ def get_target_point(egos_data, cur_frame_id, N, R, ego_loc):
 
 def main(_type, town=['10', 'B3', 'A6']):
 
-    data_root = os.path.join(
-        "/media/waywaybao_cs10/DATASET/RiskBench_Dataset", _type)
-
-    scenario_list = []
-
-    for basic in sorted(os.listdir(data_root)):
-        if not basic[:2] in town:
-            continue
-
-        basic_path = os.path.join(data_root, basic, "variant_scenario")
-
-        for variant in sorted(os.listdir(basic_path)):
-            scenario_list.append((basic, variant))
-
+    tp_list = OrderedDict()
 
     total_start = time.time()
-
     for idx, (basic, variant) in enumerate(sorted(scenario_list), 1):
 
         basic_path = os.path.join(data_root, basic, "variant_scenario")
@@ -73,7 +58,7 @@ def main(_type, town=['10', 'B3', 'A6']):
 
         ego_data_path = os.path.join(variant_path, "ego_data")
         egos_data = OrderedDict()
-        goal_list[basic+'_'+variant] = OrderedDict()
+        tp_list[basic+'_'+variant] = OrderedDict()
         N = len(os.listdir(ego_data_path))
 
         for frame in sorted(os.listdir(ego_data_path)):
@@ -96,27 +81,37 @@ def main(_type, town=['10', 'B3', 'A6']):
             gx, gy = get_target_point(
                 egos_data, cur_frame_id=frame_id, N=N, R=R, ego_loc=ego_loc)
 
-            goal_list[basic+'_'+variant][f"{frame_id:08d}"] = [gx, gy]
+            tp_list[basic+'_'+variant][f"{frame_id:08d}"] = [gx, gy]
 
         print(f"{idx:4d}/{len(scenario_list):4d}\t{_type+'_'+basic+'_'+variant}\t fininshed!")
 
     total_end = time.time()
     print(f"Total time: {total_end-total_start:.2f}s")
+    return tp_list
 
 
 if __name__ == '__main__':
 
-    from multiprocessing import Pool
-    from multiprocessing import cpu_count
-
-    train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
-    test_town = ["10", "A6", "B3"]   # 515, (47, 11)
-
+    train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"]
+    test_town = ["10", "A6", "B3"]
+    town = train_town+test_town
 
     for _type in data_type:
 
-        main(_type, train_town+test_town)
+        data_root = os.path.join(
+            "/media/waywaybao_cs10/DATASET/RiskBench_Dataset", _type)
+        scenario_list = []
+
+        for basic in sorted(os.listdir(data_root)):
+            if not basic[:2] in town:
+                continue
+            basic_path = os.path.join(data_root, basic, "variant_scenario")
+
+            for variant in sorted(os.listdir(basic_path)):
+                scenario_list.append((basic, variant))
+
+        tp_list = main(_type, town)
 
         if SAVE_JSON:
-            with open("./goal_list.json", "w") as f:
-                json.dump(goal_list, f, indent=4)
+            with open(f"./target_point_{_type}.json", "w") as f:
+                json.dump(tp_list, f, indent=4)

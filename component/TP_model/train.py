@@ -1,20 +1,17 @@
 import argparse
 import os
-import numpy as np
 import time
 import copy
-import json
 import torch
 import torch.nn as nn
-from torch.utils.tensorboard import SummaryWriter
-from torch.utils import data
-from tqdm import tqdm
 import torch.optim as optim
+from tqdm import tqdm
 from torch.optim import lr_scheduler
+from torch.utils.data import DataLoader
 
 from model import TP_MODEL
 from dataset import RiskBenchDataset
-from preprocessing import create_folder, count_parameters, write_result
+from utils import create_folder, count_parameters, write_result
 
 
 def load_weight(model, checkpoint):
@@ -24,10 +21,10 @@ def load_weight(model, checkpoint):
 
 def create_data_loader(args):
 
-    dataset_train = RiskBenchDataset(args.data_root, split='train')
-    dataset_val = RiskBenchDataset(args.data_root, split='validation')
+    dataset_train = RiskBenchDataset(args.data_root, phase='train')
+    dataset_val = RiskBenchDataset(args.data_root, phase='validation')
 
-    train_loader = data.DataLoader(
+    train_loader = DataLoader(
         dataset_train,
         batch_size=args.batch_size,
         shuffle=True,
@@ -35,7 +32,7 @@ def create_data_loader(args):
         pin_memory=True,
     )
 
-    validation_loader = data.DataLoader(
+    validation_loader = DataLoader(
         dataset_val,
         batch_size=args.batch_size,
         # shuffle=True,
@@ -73,7 +70,7 @@ def train(args, model, train_loader, validation_loader, device):
     logs_list = list()
     start = time.time()
 
-    for epoch in range(args.start_epoch, args.epochs):
+    for epoch in range(args.start_epoch, args.epochs+1):
         epoch_loss = {}
 
         for phase in ["train", "validation"]:
@@ -87,14 +84,14 @@ def train(args, model, train_loader, validation_loader, device):
             running_loss = 0.0
             with tqdm(dataloader, unit="batch") as tepoch:
 
-                for seg_inputs, gt_tps, _ in tepoch:
+                for seg_inputs, gt_tps in tepoch:
                     tepoch.set_description(f"Epoch {epoch:2d}/{args.epochs:2d}")
                     
                     seg_inputs = seg_inputs.to(device, dtype=torch.float32)
                     gt_tps = gt_tps.to(device, dtype=torch.float32)
 
                     pred_tps = model(seg_inputs)
-
+                    print(gt_tps[0].tolist(), pred_tps[0].tolist())
                     loss = criterion(pred_tps, gt_tps)
 
                     if phase == "train":
@@ -112,7 +109,7 @@ def train(args, model, train_loader, validation_loader, device):
         write_result(args, epoch, logs)
         scheduler.step(epoch)
 
-        torch.save(model, os.path.join(args.ckpts, f"epoch_{epoch}.pth"))
+        torch.save(model, os.path.join(args.ckpts_path, f"epoch_{epoch}.pth"))
 
     elapsed = time.time() - start
     print(f"Training complete in {int(elapsed//60):4d}m {int(elapsed)%60:2d}s")
@@ -125,8 +122,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # training options
     parser.add_argument('--data_root', type=str, default='/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data')
-    parser.add_argument('--ckpts', type=str, default='./checkpoints')
-    parser.add_argument('--results', type=str, default='./results')
+    parser.add_argument('--ckpts_root', type=str, default='./checkpoints')
+    parser.add_argument('--results_root', type=str, default='./results')
     # parser.add_argument('--log_dir', type=str, default='./logs')
     parser.add_argument('--ckpt_path', type=str, default="")
     parser.add_argument('--lr', type=float, default=1e-4)
