@@ -78,7 +78,9 @@ def create_roadline_pf(bev_seg):
     roadline = torch.from_numpy(roadline + canny)
 
     oy, ox = torch.where(roadline != 0)
-    obstacle_tensor = torch.cat((oy.unsqueeze(-1), ox.unsqueeze(-1)), 1).cuda(0)
+    if len(oy) == 0:
+        oy, ox = [0], [0]
+    obstacle_tensor = torch.from_numpy(np.stack((oy, ox), 1)).cuda(0)
     
     roadline_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=2.0, KR=400.0)
 
@@ -213,6 +215,7 @@ def main(_type, scenario_list, cpu_id=0):
             save_npy['attractive'] = attractive_pf
 
             obstacle_mask = ((bev_seg[:,:,2]+bev_seg[:,:,3])*255).astype(np.uint8)
+            
             if np.sum(obstacle_mask) < 20:
                 clust_masks = None
             else:

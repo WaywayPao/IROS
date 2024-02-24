@@ -19,7 +19,7 @@ class Flatten(nn.Module):
 
 
 class GCN(nn.Module):
-    def __init__(self, method, time_steps=5, pretrained=True, partialConv=True, use_target_point=False, NUM_BOX=25):
+    def __init__(self, method, time_steps=5, pretrained=True, partialConv=True, use_target_point=False, NUM_BOX=0):
         super(GCN, self).__init__()
 
         self.method = method
@@ -27,7 +27,6 @@ class GCN(nn.Module):
         self.pretrained = pretrained
         self.partialConv = partialConv
         self.use_target_point = use_target_point
-        self.num_box = 0  # TODO
         self.hidden_size = 512
 
         # build backbones
@@ -61,6 +60,7 @@ class GCN(nn.Module):
 
         else:
         # if False:
+            self.num_box = 0        
             self.img_encoder = nn.Sequential(
                 nn.Conv2d(channel, 16, kernel_size=3, stride=1, padding=1),
                 nn.BatchNorm2d(16),

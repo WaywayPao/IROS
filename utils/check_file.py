@@ -2,20 +2,21 @@ import os
 import json
 import random
 
-data_type = ["interactive", "non-interactive", "obstacle", "collision"][0:4]
+data_type = ["interactive", "non-interactive", "obstacle", "collision"][0:1]
 undone_list = []
 
 train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
 test_town = ["10", "A6", "B3"]   # 515, (47, 11)
 
 is_file = False
-tgt_name = "bev-seg"
+# tgt_name = "bev-seg"
+tgt_name = "pre_cvt_actor_pf_npy"
+# tgt_name = "actor_pf_npy"
 town = train_town+test_town
 
 # is_file = True
 # tgt_name = "bev_box.json"
 # town = train_town+test_town
-
 
 def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
 
@@ -26,7 +27,7 @@ def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
     # tgt_root = os.path.join(
     #     "/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
 
-    basic_variant_list = []
+    scenario_list = []
     basic_cnt, variant_cnt = 0, 0
     
     for basic in sorted(os.listdir(data_root)):
@@ -41,19 +42,12 @@ def main(_type, st=None, ed=None, town=['10', 'B3', 'A6'], cpu_id=0):
             if os.listdir(basic_path+'/'+variant) == 0:
                 print(basic, variant)
             variant_cnt += 1
-            basic_variant_list.append((basic, variant))
-
-    #####################
-    # basic_variant_list = json.load(open("undone_list.json"))
-    #####################
+            scenario_list.append((basic, variant))
 
     undone = 0
-    for idx, (basic, variant) in enumerate(sorted(basic_variant_list)[st:ed], 1):
+    for idx, (basic, variant) in enumerate(sorted(scenario_list)[st:ed], 1):
 
-        basic_path = os.path.join(data_root, basic, "variant_scenario")
-        variant_path = os.path.join(basic_path, variant)
-        img_path = os.path.join(variant_path, "rgb/front")
-
+        img_path = os.path.join(data_root, basic, "variant_scenario", variant, "rgb/front")
         tgt_path = os.path.join(tgt_root, basic, "variant_scenario", variant, tgt_name)
 
         miss_tgt = False

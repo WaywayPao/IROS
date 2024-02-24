@@ -8,10 +8,11 @@ import torch
 import PIL.Image as Image
 from collections import OrderedDict
 
-USE_GT = False
+# foldername = "pre_cvt_actor_pf_npy"
+foldername = "actor_pf_npy"
+USE_GT = True
 SAVE_PF = True
 save_img = False
-foldername = "pre_cvt_actor_pf_npy"
 
 data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
@@ -59,7 +60,7 @@ def get_seg_mask(raw_bev_seg, channel=5):
         new_bev_seg = torch.LongTensor(new_bev_seg)
         one_hot = torch.nn.functional.one_hot(new_bev_seg, channel+1).float()
         
-        return one_hot[:,:,1:].numpy()
+        return one_hot[:,:,1:].numpy()*VIEW_MASK_CPU[:,:,None]
     
     else:
         one_hot = np.zeros((IMG_H, IMG_W, channel), dtype=np.float32)
@@ -70,17 +71,6 @@ def get_seg_mask(raw_bev_seg, channel=5):
             one_hot[:, :, idx] = matching_pixels*VIEW_MASK_CPU
 
         return one_hot
-
-    # bev_seg = np.zeros((IMG_H, IMG_W, channel), dtype=np.float32)
-    # raw_bev_seg = raw_bev_seg[:100,:]
-
-    # for idx, cls in enumerate(TARGET):
-    #     target_color = np.array(TARGET[cls])
-    #     matching_pixels = np.all(raw_bev_seg == target_color, axis=-1)[:100].astype(np.float32)
-    #     bev_seg[:, :, idx] = matching_pixels*VIEW_MASK_CPU
-    #     # cv2.imwrite(f"{idx}.png", bev_seg[:, :, idx].astype(np.uint8)*255)
-
-    # return bev_seg
 
 
 def create_roadline_pf(bev_seg):
@@ -97,8 +87,12 @@ def create_roadline_pf(bev_seg):
     roadline = torch.from_numpy(roadline + canny)
 
     oy, ox = torch.where(roadline != 0)
-    obstacle_tensor = torch.cat((oy.unsqueeze(-1), ox.unsqueeze(-1)), 1).cuda(0)
-    
+    if len(oy) == 0:
+        oy, ox = [0], [0]
+    obstacle_tensor = torch.from_numpy(np.stack((oy, ox), 1)).cuda(0)
+
+    # obstacle_tensor = torch.cat((oy.unsqueeze(-1), ox.unsqueeze(-1)), 1).cuda(0)
+
     roadline_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=2.0, KR=400.0)
 
     return roadline_pf
@@ -138,32 +132,6 @@ def draw_heatmap(data):
     return data
 
 
-def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
-    
-    if clust_masks == None:
-        return None, -1
-
-    max_idx = None
-    max_iou = -1
-
-    points = np.array(points)
-    zero_mask = np.zeros((IMG_H, IMG_W), dtype=np.uint8)
-    actor_mask = cv2.fillPoly(zero_mask, [points], color=(255)).astype(np.bool)
-
-    # cv2.imwrite(f"mask_{actor_id}.png", actor_mask*255)
-
-    for idx, mask in enumerate(clust_masks):
-
-        mask = mask.copy().astype(np.bool)
-        iou = np.sum((actor_mask&mask))/(np.sum((actor_mask|mask))+1)
-
-        if iou>max_iou and iou>IOU_thres:
-            max_iou = iou
-            max_idx = idx
-
-    return max_idx, max_iou
-
-
 def main(_type, scenario_list, cpu_id=0):
     
     total_start = time.time()
@@ -180,13 +148,10 @@ def main(_type, scenario_list, cpu_id=0):
         start = time.time()
 
         for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
-            frame_id = int(seg_frame.split('.')[0])
-            
+            frame_id = int(seg_frame.split('.')[0])            
             # if frame_id != 44:
             #     continue
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
-            # if os.path.isfile(save_npy_path):
-            #     continue
 
             # get bev segmentation
             seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "bev-seg", seg_frame)
@@ -218,9 +183,9 @@ def main(_type, scenario_list, cpu_id=0):
             actor_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=5.0, KR=1000.0)
 
             save_npy = OrderedDict()
-            save_npy['all_actor'] = actor_pf
-            save_npy['roadline'] = roadline_pf
-            save_npy['attractive'] = attractive_pf
+            save_npy['roadline'] = roadline_pf.cpu().numpy()
+            save_npy['attractive'] = attractive_pf.cpu().numpy()
+            save_npy['all_actor'] = actor_pf.cpu().numpy()
 
             ##########################################
 
@@ -231,7 +196,7 @@ def main(_type, scenario_list, cpu_id=0):
                 ax.set_aspect('equal', adjustable='box')
                 plt.xticks([]*IMG_W)
                 plt.yticks([]*IMG_H)
-                img = (save_npy['all_actor']+save_npy['roadline']+save_npy['attractive']).cpu().numpy()
+                img = (save_npy['all_actor']+save_npy['roadline']+save_npy['attractive'])
                 cv2.imwrite(f"{basic}-{variant}-{frame_id}-planning_cv2.png", img/np.max(img)*255)
                 
                 hv = draw_heatmap(img)
@@ -296,7 +261,7 @@ if __name__ == '__main__':
 
                 scenario_list.append((basic, variant))
 
-        main(_type, scenario_list)
+        main(_type, scenario_list[:])
 
         # from multiprocessing import Pool
         # from multiprocessing import cpu_count
