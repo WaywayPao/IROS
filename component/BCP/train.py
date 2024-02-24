@@ -332,8 +332,8 @@ def train(args, model, dataloaders, device):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_root', default=f"/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", type=str)
-    # parser.add_argument('--data_root', default=f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", type=str)
+    # parser.add_argument('--data_root', default=f"/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", type=str)
+    parser.add_argument('--data_root', default=f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", type=str)
     parser.add_argument('--behavior_root', default=f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/metadata/behavior", type=str)
     parser.add_argument('--ckpts_root', default=f'./checkpoints', type=str)
     parser.add_argument('--results_root', default=f'./results', type=str)

@@ -498,7 +498,7 @@ class PFDataLayer(data.Dataset):
         for frame_id in range(frame-self.time_step+1, frame+1):
 
             if self.use_gt:
-                pf_path = os.path.join(variant_path, "actor_pf", f"{frame_id:08d}.npy")
+                pf_path = os.path.join(variant_path, "actor_pf_npy", f"{frame_id:08d}.npy")
             else:
                 pf_path = os.path.join(variant_path, "pre_cvt_actor_pf_npy", f"{frame_id:08d}.npy")
 
