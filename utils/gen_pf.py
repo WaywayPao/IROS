@@ -15,14 +15,14 @@ data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
 IMG_W = 200
 
-save_img = False
+save_img = True
 SAVE_PF = False
 
 PIX_PER_METER = 4       # fixed
 # PIX_PER_METER = 200/46.63   # fixed
 sx = IMG_W//2
 sy = 3*PIX_PER_METER    # the distance from the ego's center to his head
-TARGET = {"roadway":[43,255,123], "roadline":[255,255,255], "pedestrian":[222,134,120], "vehicle":[255,2,120]}
+TARGET = {"roadway":[43,255,123], "roadline":[255,255,255], "vehicle":[120, 2, 255], "pedestrian":[222,134,120]}
 
 # create mask for data preprocessing
 # VIEW_MASK = cv2.imread("/media/waywaybao_cs10/Disk_2/new_seg_RiskBench/VIEW_MASK.png")[:100,:,0]
@@ -283,7 +283,7 @@ def main(_type, scenario_list, cpu_id=0):
                 plt.plot(gx, 100-gy, "*m")
                 plt.axis("equal")
                 plt.savefig(f"{basic}-{variant}-{frame_id}-{actor_id}-planning.png", dpi=300, bbox_inches='tight')
-                # exit()
+                exit()
 
             if SAVE_PF:
                 np.save(save_npy_path, save_npy)
@@ -299,17 +299,17 @@ def main(_type, scenario_list, cpu_id=0):
 
 if __name__ == '__main__':
 
-    goal_list = json.load(open("./goal_list.json"))
     train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
     test_town = ["10", "A6", "B3"]   # 515, (47, 11)
-    town = train_town+test_town
+    town = train_town
 
     for _type in data_type:
 
         data_root = os.path.join(
             "/media/waywaybao_cs10/DATASET/RiskBench_Dataset", _type)
         save_root = os.path.join(
-            f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
+            f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data/", _type)
+        goal_list = json.load(open(f"./target_point_{_type}.json"))
         scenario_list = []
 
         for basic in sorted(os.listdir(data_root)):

@@ -12,7 +12,7 @@ class RiskBenchDataset(torch.utils.data.Dataset):
         super(RiskBenchDataset, self).__init__()
 
         if phase == 'train':
-            town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"][:]
+            town = ["1_", "2_", "3_", "6_", "7_", "A1"][:]
         elif phase == 'validation':
             town = ["5_"]
         else:
@@ -77,14 +77,17 @@ class RiskBenchDataset(torch.utils.data.Dataset):
 
             seg_path = os.path.join(self.img_root, data_type, basic, "variant_scenario", variant, 'bev-seg', f"{frame_id:08d}.npy")
             gt_seg = (np.load(seg_path)*self.VIEW_MASK)[:100]
-            
+
             new_gt_seg = self.onehot_seg(gt_seg)
             gt_seg_list.append(new_gt_seg)
 
         gt_seg_list = torch.stack(gt_seg_list)
 
-        target_point = self.target_points[data_type][basic+'_'+variant][frame.split('.')[0]]
-        target_point = torch.Tensor(target_point)
+        x, y = self.target_points[data_type][basic+'_'+variant][frame.split('.')[0]]
+        x = min(max(-90, x), 90)
+        y = min(max(5, x), 90)
+        # target_point = torch.Tensor([x/100., y/100])
+        target_point = torch.Tensor([x, y])
 
         return gt_seg_list, target_point
 

@@ -63,7 +63,7 @@ def create_model(args, device):
 
 def train(args, model, train_loader, validation_loader, device):
 
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), weight_decay=args.weight_decay, eps=1e-07, amsgrad=False)
     scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.7, min_lr=0.000001)
 
@@ -91,8 +91,11 @@ def train(args, model, train_loader, validation_loader, device):
                     gt_tps = gt_tps.to(device, dtype=torch.float32)
 
                     pred_tps = model(seg_inputs)
-                    print(gt_tps[0].tolist(), pred_tps[0].tolist())
                     loss = criterion(pred_tps, gt_tps)
+
+                    if args.verbose:
+                        print(gt_tps[0].tolist(), pred_tps[0].tolist())
+
 
                     if phase == "train":
                         optimizer.zero_grad()
@@ -133,7 +136,8 @@ if __name__ == '__main__':
     parser.add_argument('--gpu', default='0,1,2,3', type=str)
     parser.add_argument('--start_epoch', default=1, type=int)
     parser.add_argument('--epochs', default=40, type=int)
-    
+    parser.add_argument('--verbose', action='store_true', default=False)
+
     args = parser.parse_args()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu

@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 from dataset import VisionDataLayer, BEV_SEGDataLayer, PFDataLayer
 from models import GCN as Model
-from utils import compute_result, create_folder
+from utils import compute_result, create_folder, write_result
 
 from tqdm import tqdm
 from torchvision import transforms
@@ -55,7 +55,7 @@ def load_weight(model, checkpoint):
 def create_model(args, device):
 
     model = Model(args.method, args.time_step, pretrained=args.pretrained,
-                  partialConv=args.partial_conv, use_intention=args.use_intention, NUM_BOX=args.num_box)
+                  partialConv=args.partial_conv, use_target_point=args.use_target_point, NUM_BOX=args.num_box)
 
     if args.ckpt_path != "":
         model = load_weight(model, args.ckpt_path)
@@ -84,10 +84,11 @@ def create_data_loader(args):
 
     datasets = {
         phase: DataLayer(
-            img_root=args.img_root,
+            img_root=args.data_root,
             behavior_root=args.behavior_root,
             num_box=args.num_box,
             camera_transforms=camera_transforms,
+            use_gt=args.use_gt,
             time_step=args.time_step,
             phase=phase,
         )
@@ -177,10 +178,10 @@ def plot_result(args, history_result, result_path, metric=""):
     color_map = ['limegreen', 'blue', 'red', 'gold', 'pink', 'skyblue']
 
     plot("train")
-    plot("test")
+    plot("validation")
 
 
-def write_result(args, epoch, dataloaders, pred_metrics, target_metrics, losses, loss_go, loss_stop):
+def save_result(args, epoch, dataloaders, pred_metrics, target_metrics, losses, loss_go, loss_stop):
 
     results = {}
     results['Epoch'] = epoch
@@ -231,9 +232,9 @@ def write_result(args, epoch, dataloaders, pred_metrics, target_metrics, losses,
 
     history_results = write_result(args, epoch, results)
 
-    plot_result(args, history_results, args.result_path, "AP")
-    plot_result(args, history_results, args.result_path, "ACC")
-    plot_result(args, history_results, args.result_path, "loss")
+    plot_result(args, history_results, args.results_path, "AP")
+    plot_result(args, history_results, args.results_path, "ACC")
+    plot_result(args, history_results, args.results_path, "loss")
 
     torch.save(model, os.path.join(args.ckpts_path, f"epoch-{epoch}.pth"))
 
@@ -321,26 +322,28 @@ def train(args, model, dataloaders, device):
                     tepoch.set_postfix(loss=loss.item())
 
         end = time.time()
-        result = write_result(args, epoch, dataloaders, pred_metrics,
+        result = save_result(args, epoch, dataloaders, pred_metrics,
                               target_metrics, losses, loss_go, loss_stop)
 
         print(f"Epoch {epoch:2d} | train loss: {result['train']['loss']:.5f} | \
-            validation loss: {result['test']['loss']:.5f} mAP: {result['test']['mAP']:.5f} | running time: {end-start:.2f} sec")
+            validation loss: {result['validation']['loss']:.5f} mAP: {result['validation']['mAP']:.5f} | running time: {end-start:.2f} sec")
 
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_root', default=f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", type=str)
+    parser.add_argument('--data_root', default=f"/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", type=str)
+    # parser.add_argument('--data_root', default=f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", type=str)
     parser.add_argument('--behavior_root', default=f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/metadata/behavior", type=str)
     parser.add_argument('--ckpts_root', default=f'./checkpoints', type=str)
     parser.add_argument('--results_root', default=f'./results', type=str)
     parser.add_argument('--log_root', default=f'./logs', type=str)
     # parser.add_argument('--roi_root', default=f'./ROI', type=str)
     parser.add_argument('--method', choices=["vision", "bev_seg", "pf"], type=str, required=True)
-    parser.add_argument('--phases', choices=["train", "validation"], type=str, required=True)
+    parser.add_argument('--phases', default=["train", "validation"], type=list)
     parser.add_argument('--ckpt_path', default="", type=str)
     # parser.add_argument('--data_type', default='all', type=str, required=True)
+    parser.add_argument('--use_gt', action='store_true', default=False)
 
     parser.add_argument('--lr', default=1e-07, type=float)
     parser.add_argument('--weight_decay', default=1e-02, type=float)
@@ -350,7 +353,7 @@ if __name__ == '__main__':
     parser.add_argument('--start_epoch', default=1, type=int)
     parser.add_argument('--epochs', default=40, type=int)
 
-    parser.add_argument('--loss_weights', default=[1.0, 1.65], type=list)
+    parser.add_argument('--loss_weights', default=[1.0, 1.4], type=list)
     parser.add_argument('--time_step', default=5, type=int)
     parser.add_argument('--num_box', default=30, type=int)
     parser.add_argument('--class_index', default=['go', 'stop'], type=list)
@@ -369,6 +372,6 @@ if __name__ == '__main__':
     dataloaders = create_data_loader(args)
     model = create_model(args, device)
 
-    writer = SummaryWriter(args.log_dir)
+    writer = SummaryWriter(args.log_path)
     train(args, model, dataloaders, device)
     writer.close()

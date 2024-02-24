@@ -233,10 +233,10 @@ class VisionDataLayer(data.Dataset):
 class BEV_SEGDataLayer(data.Dataset):
     
     def __init__(self, img_root, behavior_root, num_box=25,\
-                  img_resize=(100, 200), camera_transforms=None, time_step=5, phase="train"):
+                  img_resize=(100, 200), camera_transforms=None, use_gt=False, time_step=5, phase="train"):
 
         if phase == 'train':
-            town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"][:]
+            town = ["1_", "2_", "3_", "6_", "7_", "A1"][:]
         elif phase == 'validation':
             town = ["5_"]
         else:
@@ -245,10 +245,11 @@ class BEV_SEGDataLayer(data.Dataset):
         self.img_root = img_root
         self.num_box = num_box
         self.img_resize = img_resize
+        self.use_gt = use_gt
         self.time_step = time_step
-        self.data_types = ["interactive", "non-interactive", "obstacle", "collision"][:3]
+        self.data_types = ["interactive", "non-interactive", "obstacle", "collision"][:1]
 
-        self.VIEW_MASK = cv2.imread("../../utils/VIEW_MASK.png")[:,:,0].copy()/255
+        self.VIEW_MASK = (cv2.imread("../../utils/VIEW_MASK.png")[:,:,0] != 0).astype(np.float32)
         self.target_points = {}
         self.behavior_dict = {}
         self.load_behavior(behavior_root)
@@ -321,23 +322,43 @@ class BEV_SEGDataLayer(data.Dataset):
         return frames, labels
 
 
-    def onehot_seg(self, bev_seg, N_CLASSES=6):
-
+    def onehot_seg(self, bev_seg, N_CLASSES=5):
+        
+        TARGET = {"roadway":[43,255,123], "roadline":[255,255,255], "vehicle":[120, 2, 255], "pedestrian":[222,134,120]}
         """
-            # AGENT = 6 (EGO)
-            OBSTACLES = 5
-            PEDESTRIANS = 4
-            VEHICLES = 3
-            ROAD_LINE = 2
-            ROAD = 1
-            UNLABELES = 0
+            src:
+                AGENT = 6
+                OBSTACLES = 5
+                PEDESTRIANS = 4
+                VEHICLES = 3
+                ROAD_LINE = 2
+                ROAD = 1
+                UNLABELES = 0
+            new (return):
+                OBSTACLES = 4
+                PEDESTRIANS = 3
+                VEHICLES = 2
+                ROAD_LINE = 1
+                ROAD = 0
         """
 
-        bev_seg = np.where((bev_seg<6) & (bev_seg>0), bev_seg, 0)
-        bev_seg = torch.LongTensor(bev_seg)
-        one_hot = torch.nn.functional.one_hot(bev_seg, N_CLASSES).permute(2, 0, 1).float()
+        if self.use_gt:
+            new_bev_seg = np.where((bev_seg<6) & (bev_seg>0), bev_seg, 0)
+            new_bev_seg = torch.LongTensor(new_bev_seg)
+            one_hot = torch.nn.functional.one_hot(new_bev_seg, N_CLASSES+1).permute(2, 0, 1).float()
 
-        return one_hot[1:]
+            return one_hot[1:]
+        
+        else:
+            new_bev_seg = np.zeros((self.img_resize[0], self.img_resize[1], N_CLASSES+1), dtype=np.float32)
+
+            for idx, cls in enumerate(TARGET):
+                target_color = np.array(TARGET[cls])
+                matching_pixels = np.all(bev_seg == target_color, axis=-1).astype(np.float32)
+                new_bev_seg[:, :, idx] = matching_pixels*self.VIEW_MASK[:100]
+
+            one_hot = torch.LongTensor(new_bev_seg).permute(2, 0, 1).float()
+            return one_hot[:-1]
 
 
     def __getitem__(self, index):
@@ -349,15 +370,20 @@ class BEV_SEGDataLayer(data.Dataset):
 
         for frame_id in range(frame-self.time_step+1, frame+1):
 
-            seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.npy")
-            gt_seg = (np.load(seg_path)*self.VIEW_MASK)[:100]
+            if self.use_gt:
+                seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.npy")
+                gt_seg = (np.load(seg_path)*self.VIEW_MASK)[:100]
+
+            else:
+                seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.png")
+                gt_seg = (np.array(Image.open(seg_path).convert('RGB').copy()))[:100]
 
             new_gt_seg = self.onehot_seg(gt_seg)
             gt_seg_list.append(new_gt_seg)
 
         gt_seg_list = torch.stack(gt_seg_list)
 
-        target_point = self.target_points[data_type][basic+'_'+variant][frame.split('.')[0]]
+        target_point = self.target_points[data_type][basic+'_'+variant][f"{frame:08d}"]
         target_point = torch.Tensor(target_point)
 
         # padding tracker (useless)
