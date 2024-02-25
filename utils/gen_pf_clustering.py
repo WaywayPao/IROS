@@ -11,6 +11,8 @@ from plantcv import plantcv as pcv
 # Set global debug behavior to None (default), "print" (to file), or "plot" (Jupyter Notebooks or X11)
 pcv.params.debug = None
 
+foldername = "pre_cvt_clus_actor_pf_npy"
+# foldername = "pre_cvt_actor_pf_npy"
 save_img = True
 SAVE_PF = False
 
@@ -176,7 +178,7 @@ def main(_type, scenario_list, cpu_id=0):
     for idx, (basic, variant) in enumerate(sorted(scenario_list), 1):
 
         variant_path = os.path.join(data_root, basic, "variant_scenario", variant)
-        save_npy_folder = os.path.join(save_root, basic, "variant_scenario", variant, "actor_pf_npy")
+        save_npy_folder = os.path.join(save_root, basic, "variant_scenario", variant, foldername)
         bev_box = json.load(open(os.path.join(box_3d_root, basic, "variant_scenario", variant, "bev_box.json")))
 
         if not os.path.isdir(save_npy_folder):
@@ -271,15 +273,16 @@ def main(_type, scenario_list, cpu_id=0):
 if __name__ == '__main__':
 
     train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
+    val_town = ["5_"]
     test_town = ["10", "A6", "B3"]   # 515, (47, 11)
-    town = train_town
+    town = val_town
 
     for _type in data_type:
 
         data_root = os.path.join(
             "/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
         save_root = os.path.join(
-            f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data/pred_cvt", _type)
+            f"/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
         box_3d_root = os.path.join(
             f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
         goal_list = json.load(open(f"./target_point_{_type}.json"))
@@ -298,8 +301,8 @@ if __name__ == '__main__':
                 #     continue
                 # if not (basic == "1_s-4_0_m_l_f_1_s" and variant == "CloudySunset_low_"):
                 #     continue
-                if not (basic == "2_t2-2_1_t_u_r_1_0" and variant == "ClearSunset_low_"):
-                    continue
+                # if not (basic == "2_t2-2_1_t_u_r_1_0" and variant == "ClearSunset_low_"):
+                #     continue
 
                 scenario_list.append((basic, variant))
 
