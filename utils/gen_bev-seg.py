@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import json
 import os
+import cv2
 from riskbench_data import BirdViewProducer, BirdView
 from mask import PixelDimensions, Loc
 
@@ -146,6 +147,7 @@ def get_item(variant_path, frame, actor_attribute_data, data_type="interactive")
 
 def gen_BEV(variant_path, frame, Town, data_type="interactive"):
     
+    
     actor_attribute_path = os.path.join(variant_path, "actor_attribute.json")
     actor_attribute_data = json.load(open(actor_attribute_path))
 
@@ -166,7 +168,7 @@ def gen_BEV(variant_path, frame, Town, data_type="interactive"):
                                                     obstacle_bbox_list=obstacle_bbox_list)
 
 
-    # birdview_rgb = BirdViewProducer.as_rgb(birdview)
+    birdview_rgb = BirdViewProducer.as_rgb(birdview)
     birdview_mask =  BirdViewProducer.as_ss(birdview)
     # topdown = preprocess_semantic(birdview_mask).numpy()
 
@@ -182,7 +184,7 @@ def gen_BEV(variant_path, frame, Town, data_type="interactive"):
 
     # a = cv2.imread(variant_path+'/rgb/front/'+frame+'.jpg')
     # b = cv2.imread(variant_path+'/instance_segmentation/top/'+frame+'.png')
-    # cv2.imwrite("birdview.png", birdview_rgb[:, :, ::-1])
+    cv2.imwrite("birdview.png", birdview_rgb[:, :, ::-1])
     # cv2.imwrite("src_front.png", a)
     # cv2.imwrite("src_top.png", b)
 
@@ -201,12 +203,13 @@ def main(scenario_list, cpu_id):
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
         
-        if len(os.listdir(save_dir)) == N:
-            continue
+        # if len(os.listdir(save_dir)) == N:
+        #     continue
         
         for frame_id in range(1, N+1):
-            bev_seg = gen_BEV(variant_dir, f"{frame_id:08d}", town, _type)
-            np.save(save_dir+f"/{frame_id:08d}.npy", bev_seg)
+            if frame_id == 37:
+                bev_seg = gen_BEV(variant_dir, f"{frame_id:08d}", town, _type)
+            # np.save(save_dir+f"/{frame_id:08d}.npy", bev_seg)
 
         print(
             f"CPU ID: {cpu_id:3d}\t{_type}\t{basic}_{variant}\t Done!")
@@ -230,21 +233,23 @@ if __name__ == '__main__':
             basic_path = os.path.join(data_root, basic, "variant_scenario")
 
             for variant in sorted(os.listdir(basic_path)):
+                if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
+                    continue
                 scenario_list.append([_type, basic, variant, town])
 
-        # main(scenario_list, 0)
+        main(scenario_list, 0)
 
-        from multiprocessing import Pool
-        from multiprocessing import cpu_count
+        # from multiprocessing import Pool
+        # from multiprocessing import cpu_count
 
-        cpu_n = 15
-        variant_per_cpu = len(scenario_list)//cpu_n+1
-        pool_sz = cpu_count()
+        # cpu_n = 15
+        # variant_per_cpu = len(scenario_list)//cpu_n+1
+        # pool_sz = cpu_count()
 
-        with Pool(pool_sz) as p:
-            res = p.starmap(main, [(scenario_list[i*variant_per_cpu:i*variant_per_cpu+variant_per_cpu], i)
-                            for i in range(cpu_n)])
-            p.close()
-            p.join()
+        # with Pool(pool_sz) as p:
+        #     res = p.starmap(main, [(scenario_list[i*variant_per_cpu:i*variant_per_cpu+variant_per_cpu], i)
+        #                     for i in range(cpu_n)])
+        #     p.close()
+        #     p.join()
 
         

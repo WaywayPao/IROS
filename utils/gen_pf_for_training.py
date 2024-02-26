@@ -11,8 +11,8 @@ from collections import OrderedDict
 # foldername = "pre_cvt_actor_pf_npy"
 foldername = "actor_pf_npy"
 USE_GT = True
-SAVE_PF = True
-save_img = False
+SAVE_PF = False
+save_img = True
 
 data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
@@ -24,7 +24,8 @@ sy = 3*PIX_PER_METER    # the distance from the ego's center to his head
 TARGET = {"roadway":[43,255,123], "roadline":[255,255,255], "vehicle":[120, 2, 255], "pedestrian":[222,134,120]}
 
 # create mask for data preprocessing
-VIEW_MASK_CPU = cv2.imread("/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench/VIEW_MASK.png")
+VIEW_MASK_CPU = cv2.imread("./VIEW_MASK.png")
+# VIEW_MASK_CPU = np.ones((100, 200, 3), dtype=np.uint8)*255
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
 # VIEW_MASK = np.ones((IMG_H, IMG_W)) # GT
 VIEW_MASK = torch.from_numpy(VIEW_MASK_CPU).cuda(0)
@@ -149,8 +150,8 @@ def main(_type, scenario_list, cpu_id=0):
 
         for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
             frame_id = int(seg_frame.split('.')[0])            
-            # if frame_id != 44:
-            #     continue
+            if frame_id != 33:
+                continue
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
 
             # get bev segmentation
@@ -235,8 +236,6 @@ if __name__ == '__main__':
         else:
             data_root = os.path.join(
                 "/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
-            # save_root = os.path.join(
-            #     f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data/pred_cvt", _type)
             save_root = os.path.join(
                 f"/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
 
@@ -250,8 +249,8 @@ if __name__ == '__main__':
             basic_path = os.path.join(data_root, basic, "variant_scenario")
 
             for variant in sorted(os.listdir(basic_path)):
-                # if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
-                #     continue
+                if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
+                    continue
                 # if not (basic == "7_t1-4_0_t_f_r_1_0" and variant == "ClearSunset_low_"):
                 #     continue
                 # if not (basic == "1_s-4_0_m_l_f_1_s" and variant == "CloudySunset_low_"):
