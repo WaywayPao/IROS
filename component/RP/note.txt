@@ -1,0 +1,15 @@
+# train town w/ town05
+pf_npy shape: (499713, 12800)
+mean: 42.04996868202348         std: 20.054079041369747
+
+# train town w/o town05
+pf_npy shape: (403110, 12800)
+mean: 41.200563121728564        std: 19.82826523777629
+
+# test town
+pf_npy shape: (230430, 12800)
+mean: 41.803736492644184        std: 20.202022306123336
+
+# all town
+pf_npy shape: (730143, 12800)
+mean: 41.97225748928634         std: 20.100769301356035

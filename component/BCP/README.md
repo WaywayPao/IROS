@@ -21,3 +21,6 @@
 	python test_roi.py --method pf --batch_size 32 --use_target_point --gpu 0 --verbose --ckpt_path ./ckpts/2024-1-25_161427/epoch-10.pth --save_roi
 
 	python test.py --method vision --use_target_point --gpu 0 --verbose --ckpt_path ./ckpts/2024-1-23_190536/epoch-7.pth --save_roi
+
+	# 2/27
+	python train.py --method pf --batch_size 32 --num_worker 8 --lr 0.0000005 --gpu 0 --verbose --ckpt_path "./checkpoints/2024-2-25_002941/epoch-40.pth" --epochs 40

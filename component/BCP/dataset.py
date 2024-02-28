@@ -249,7 +249,7 @@ class BEV_SEGDataLayer(data.Dataset):
         self.time_step = time_step
         self.data_types = ["interactive", "non-interactive", "obstacle", "collision"][:1]
 
-        self.VIEW_MASK = (cv2.imread("../../utils/VIEW_MASK.png")[:,:,0] != 0).astype(np.float32)
+        self.VIEW_MASK = (cv2.imread("../../utils/mask_120degree.png")[:,:,0] != 0).astype(np.float32)
         self.target_points = {}
         self.behavior_dict = {}
         self.load_behavior(behavior_root)
@@ -375,7 +375,7 @@ class BEV_SEGDataLayer(data.Dataset):
                 gt_seg = (np.load(seg_path)*self.VIEW_MASK)[:100]
 
             else:
-                seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.png")
+                seg_path = os.path.join(variant_path, "cvt_bev-seg", f"{frame_id:08d}.png")
                 gt_seg = (np.array(Image.open(seg_path).convert('RGB').copy()))[:100]
 
             # new_gt_seg : Cx100x200
@@ -416,7 +416,7 @@ class PFDataLayer(data.Dataset):
         self.time_step = time_step
         self.data_types = ["interactive", "non-interactive", "obstacle", "collision"][:1]
 
-        # self.VIEW_MASK = (cv2.imread("../../utils/VIEW_MASK.png")[:,:,0] != 0).astype(np.float32)
+        # self.VIEW_MASK = (cv2.imread("../../utils/mask_120degree.png")[:,:,0] != 0).astype(np.float32)
         self.target_points = {}
         self.behavior_dict = {}
         self.load_behavior(behavior_root)
@@ -444,7 +444,12 @@ class PFDataLayer(data.Dataset):
                     N = len(os.listdir(seg_folder))
                     frames, labels = self.get_behavior(data_type, basic, variant, N)
 
-                    for frame_no, label in list(zip(frames, labels))[self.time_step:-20:self.time_step]:
+                    if phase == 'test':
+                        frame_list = list(zip(frames, labels))[self.time_step-1::]
+                    else:
+                        frame_list = list(zip(frames, labels))[self.time_step-1:-20:self.time_step]
+                    
+                    for frame_no, label in frame_list:
                         self.inputs.append([data_type, basic, variant, frame_no, np.array(label, dtype=np.float32)])
                         self.cnt_labels[int(label)] += 1
 

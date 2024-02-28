@@ -27,7 +27,7 @@ sy = 3*PIX_PER_METER    # the distance from the ego's center to his head
 TARGET = {"roadway":[43,255,123], "roadline":[255,255,255], "vehicle":[120, 2, 255], "pedestrian":[222,134,120]}
 
 # create mask for data preprocessing
-VIEW_MASK_CPU = cv2.imread("./VIEW_MASK.png")
+VIEW_MASK_CPU = cv2.imread("./mask_120degree.png")
 # VIEW_MASK_CPU = np.ones((100, 200, 3), dtype=np.uint8)*255
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
 VIEW_MASK = torch.from_numpy(VIEW_MASK_CPU).cuda(0)
@@ -65,15 +65,20 @@ def get_seg_mask(raw_bev_seg, channel=5):
         return one_hot[:,:,1:].numpy()*VIEW_MASK_CPU[:,:,None]
     
     else:
-        one_hot = np.zeros((IMG_H, IMG_W, channel), dtype=np.float32)
-        
-        for idx, cls in enumerate(TARGET):
-            target_color = np.array(TARGET[cls])
-            matching_pixels = np.all(raw_bev_seg == target_color, axis=-1).astype(np.float32)
-            one_hot[:, :, idx] = matching_pixels*VIEW_MASK_CPU
+        one_hot = (np.transpose(raw_bev_seg, (1, 2, 0))).astype(np.float32)
+        # print(one_hot.shape)
+        return one_hot*VIEW_MASK_CPU[:,:,None]
 
-        return one_hot
 
+        # one_hot = np.zeros((IMG_H, IMG_W, channel), dtype=np.float32)
+
+        # for idx, cls in enumerate(TARGET):
+        #     target_color = np.array(TARGET[cls])
+        #     matching_pixels = np.all(raw_bev_seg == target_color, axis=-1).astype(np.float32)
+        #     one_hot[:, :, idx] = matching_pixels*VIEW_MASK_CPU
+
+        # return one_hot
+    
 
 def create_roadline_pf(bev_seg):
 
@@ -196,25 +201,26 @@ def main(_type, scenario_list, cpu_id=0):
         bev_seg_path = os.path.join(variant_path, "bev-seg")
         start = time.time()
 
-        for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
+        for seg_frame in sorted(os.listdir(bev_seg_path))[4:]:
             frame_id = int(seg_frame.split('.')[0])
             
-            if frame_id != 37:
-                continue
+            # if frame_id != 37:
+            #     continue
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
             # if os.path.isfile(save_npy_path):
             #     continue
 
             # get bev segmentation
-            seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "bev-seg", seg_frame)
             if USE_GT:
                 seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.npy")
                 raw_bev_seg = (np.load(seg_path))
                 # cv2.imwrite("raw_img.png", (raw_bev_seg/6*255).astype(np.uint8))
             else:
-                raw_bev_seg = np.array(Image.open(seg_path).convert('RGB').copy())
-                # cv2.imwrite("raw_img.png", (raw_bev_seg).astype(np.uint8))
-            
+                seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "cvt_bev-seg", seg_frame)
+                raw_bev_seg = np.load(seg_path)
+                cv2.imwrite("raw_img.png", ((raw_bev_seg[0].reshape(100,200))*255).astype(np.uint8))            
+
+
             bev_seg = get_seg_mask(raw_bev_seg[:100])
 
             # get target point
@@ -272,7 +278,7 @@ def main(_type, scenario_list, cpu_id=0):
                     plt.plot(gx+4, 100-gy-2, "*m", markersize=16)
                     plt.axis("equal")
                     plt.savefig(f"{basic}-{variant}-{frame_id}-{actor_id}-planning.png", dpi=300, bbox_inches='tight')
-            exit()
+                    exit()
 
             if SAVE_PF:
                 np.save(save_npy_path, save_npy)
@@ -291,21 +297,22 @@ if __name__ == '__main__':
     train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
     val_town = ["5_"]
     test_town = ["10", "A6", "B3"]   # 515, (47, 11)
-    town = train_town+val_town+test_town
+    town = test_town
 
     for _type in data_type:
 
-        data_root = os.path.join(
-            "/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
-        
         # data_root = os.path.join(
-        #         "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
+        #     "/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
+        
+        data_root = os.path.join(
+                "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
         
         save_root = os.path.join(
             f"/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
         box_3d_root = os.path.join(
             f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
-        goal_list = json.load(open(f"./target_point_{_type}.json"))
+        goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-23_183928.json"))
+        # goal_list = json.load(open(f"./target_point_{_type}.json"))
         scenario_list = []
 
         for basic in sorted(os.listdir(data_root)):
@@ -315,8 +322,8 @@ if __name__ == '__main__':
             basic_path = os.path.join(data_root, basic, "variant_scenario")
 
             for variant in sorted(os.listdir(basic_path)):
-                if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
-                    continue
+                # if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
+                #     continue
                 # if not (basic == "7_t1-4_0_t_f_r_1_0" and variant == "ClearSunset_low_"):
                 #     continue
                 # if not (basic == "1_s-4_0_m_l_f_1_s" and variant == "CloudySunset_low_"):

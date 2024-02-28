@@ -8,9 +8,9 @@ import torch
 import PIL.Image as Image
 from collections import OrderedDict
 
-# foldername = "pre_cvt_actor_pf_npy"
-foldername = "actor_pf_npy"
-USE_GT = True
+foldername = "pre_cvt_actor_pf_npy"
+# foldername = "actor_pf_npy"
+USE_GT = False
 SAVE_PF = False
 save_img = True
 
@@ -24,7 +24,7 @@ sy = 3*PIX_PER_METER    # the distance from the ego's center to his head
 TARGET = {"roadway":[43,255,123], "roadline":[255,255,255], "vehicle":[120, 2, 255], "pedestrian":[222,134,120]}
 
 # create mask for data preprocessing
-VIEW_MASK_CPU = cv2.imread("./VIEW_MASK.png")
+VIEW_MASK_CPU = cv2.imread("./mask_120degree.png")
 # VIEW_MASK_CPU = np.ones((100, 200, 3), dtype=np.uint8)*255
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
 # VIEW_MASK = np.ones((IMG_H, IMG_W)) # GT
@@ -64,14 +64,19 @@ def get_seg_mask(raw_bev_seg, channel=5):
         return one_hot[:,:,1:].numpy()*VIEW_MASK_CPU[:,:,None]
     
     else:
-        one_hot = np.zeros((IMG_H, IMG_W, channel), dtype=np.float32)
-        
-        for idx, cls in enumerate(TARGET):
-            target_color = np.array(TARGET[cls])
-            matching_pixels = np.all(raw_bev_seg == target_color, axis=-1).astype(np.float32)
-            one_hot[:, :, idx] = matching_pixels*VIEW_MASK_CPU
+        one_hot = (np.transpose(raw_bev_seg, (1, 2, 0))).astype(np.float32)
+        # print(one_hot.shape)
+        return one_hot*VIEW_MASK_CPU[:,:,None]
 
-        return one_hot
+
+        # one_hot = np.zeros((IMG_H, IMG_W, channel), dtype=np.float32)
+
+        # for idx, cls in enumerate(TARGET):
+        #     target_color = np.array(TARGET[cls])
+        #     matching_pixels = np.all(raw_bev_seg == target_color, axis=-1).astype(np.float32)
+        #     one_hot[:, :, idx] = matching_pixels*VIEW_MASK_CPU
+
+        # return one_hot
 
 
 def create_roadline_pf(bev_seg):
@@ -155,14 +160,15 @@ def main(_type, scenario_list, cpu_id=0):
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
 
             # get bev segmentation
-            seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "bev-seg", seg_frame)
             if USE_GT:
                 seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.npy")
                 raw_bev_seg = (np.load(seg_path))
                 # cv2.imwrite("raw_img.png", (raw_bev_seg/6*255).astype(np.uint8))
             else:
-                raw_bev_seg = np.array(Image.open(seg_path).convert('RGB').copy())
-                # cv2.imwrite("raw_img.png", (raw_bev_seg).astype(np.uint8))
+                seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "cvt_bev-seg", seg_frame)
+                raw_bev_seg = np.load(seg_path)
+                # raw_bev_seg = np.array(Image.open(seg_path).convert('RGB').copy())
+                # cv2.imwrite("raw_img.png", ((raw_bev_seg[2].reshape(100,200))*255).astype(np.uint8))
 
             bev_seg = get_seg_mask(raw_bev_seg[:100])
 
@@ -205,7 +211,7 @@ def main(_type, scenario_list, cpu_id=0):
                 plt.plot(gx, 100-gy, "*m")
                 plt.axis("equal")
                 plt.savefig(f"{basic}-{variant}-{frame_id}-planning.png", dpi=300, bbox_inches='tight')
-                exit()
+                # exit()
 
             if SAVE_PF:
                 np.save(save_npy_path, save_npy)
@@ -224,11 +230,12 @@ if __name__ == '__main__':
                                        
     train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
     test_town = ["10", "A6", "B3"]   # 515, (47, 11)
-    town = train_town+test_town
+    town = test_town
 
     for _type in data_type:
 
-        if USE_GT:
+        if True:
+        # if USE_GT:
             data_root = os.path.join(
                 "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
             save_root = os.path.join(

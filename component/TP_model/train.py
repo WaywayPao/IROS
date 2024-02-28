@@ -21,8 +21,8 @@ def load_weight(model, checkpoint):
 
 def create_data_loader(args):
 
-    dataset_train = RiskBenchDataset(args.data_root, phase='train')
-    dataset_val = RiskBenchDataset(args.data_root, phase='validation')
+    dataset_train = RiskBenchDataset(args.data_root, phase='train', use_gt=args.use_gt)
+    dataset_val = RiskBenchDataset(args.data_root, phase='validation', use_gt=args.use_gt)
 
     train_loader = DataLoader(
         dataset_train,
@@ -84,7 +84,7 @@ def train(args, model, train_loader, validation_loader, device):
             running_loss = 0.0
             with tqdm(dataloader, unit="batch") as tepoch:
 
-                for seg_inputs, gt_tps in tepoch:
+                for seg_inputs, gt_tps, _ in tepoch:
                     tepoch.set_description(f"Epoch {epoch:2d}/{args.epochs:2d}")
                     
                     seg_inputs = seg_inputs.to(device, dtype=torch.float32)
@@ -129,6 +129,8 @@ if __name__ == '__main__':
     parser.add_argument('--results_root', type=str, default='./results')
     # parser.add_argument('--log_dir', type=str, default='./logs')
     parser.add_argument('--ckpt_path', type=str, default="")
+    parser.add_argument('--use_gt', action='store_true', default=False)
+
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--weight_decay', default=0.01, type=float)
     parser.add_argument('--batch_size', type=int, default=16)
