@@ -53,6 +53,30 @@ class TP_MODEL(nn.Module):
         )
 
 
+        self.tp_predictor_x = nn.Sequential(
+            nn.Linear(self.hidden_size, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 16),
+            nn.ReLU(inplace=True),
+            nn.Linear(16, 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(4, 1),
+        )
+
+        self.tp_predictor_y = nn.Sequential(
+            nn.Linear(self.hidden_size, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 16),
+            nn.ReLU(inplace=True),
+            nn.Linear(16, 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(4, 1),
+        )
+
     def forward(self, seg_inputs):
 
         B, T, C, H, W = seg_inputs.shape
@@ -72,5 +96,10 @@ class TP_MODEL(nn.Module):
             feature = self.drop(feature)
             hx, cx = self.lstm(feature, (hx, cx))
 
-        pred_tp = self.tp_predictor(hx)
-        return pred_tp
+        # pred_tp = self.tp_predictor(hx)
+        # return pred_tp
+
+        pred_x = self.tp_predictor_x(hx)
+        pred_y = self.tp_predictor_y(hx)
+
+        return pred_x, pred_y

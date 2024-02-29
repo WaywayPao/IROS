@@ -31,6 +31,7 @@ class RiskBenchDataset(torch.utils.data.Dataset):
         
         for data_type in self.data_types:
             self.target_points[data_type] = json.load(open(f"../../utils/target_point_{data_type}.json"))
+
             type_path = os.path.join(img_root, data_type)
 
             for basic in sorted(os.listdir(type_path)):
@@ -99,7 +100,7 @@ class RiskBenchDataset(torch.utils.data.Dataset):
 
         x, y = self.target_points[data_type][basic+'_'+variant][frame.split('.')[0]]
         x = min(max(-90, x), 90)
-        y = min(max(5, x), 90)
+        y = min(max(10, y), 90)
         # target_point = torch.Tensor([x/100., y/100])
         target_point = torch.Tensor([x, y])
 

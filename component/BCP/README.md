@@ -24,3 +24,10 @@
 
 	# 2/27
 	python train.py --method pf --batch_size 32 --num_worker 8 --lr 0.0000005 --gpu 0 --verbose --ckpt_path "./checkpoints/2024-2-25_002941/epoch-40.pth" --epochs 40
+
+	# gt pf
+	2024-2-28_210146 epoch-5
+	
+	# not-gt + "./checkpoints/2024-2-28_224123/epoch-5.pth"
+	2024-2-29_001439 epoch-39
+	

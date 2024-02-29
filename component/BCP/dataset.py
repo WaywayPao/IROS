@@ -261,7 +261,11 @@ class BEV_SEGDataLayer(data.Dataset):
         start_time = time.time()
 
         for data_type in self.data_types:
-            self.target_points[data_type] = json.load(open(f"../../utils/target_point_{data_type}.json"))
+            if self.use_gt:
+                self.target_points[data_type] = json.load(open(f"../../utils/target_point_{data_type}.json"))
+            else:
+                self.target_points[data_type] = None
+        
             type_path = os.path.join(img_root, data_type)
 
             for basic in sorted(os.listdir(type_path)):

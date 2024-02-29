@@ -353,7 +353,7 @@ if __name__ == '__main__':
     parser.add_argument('--start_epoch', default=1, type=int)
     parser.add_argument('--epochs', default=40, type=int)
 
-    parser.add_argument('--loss_weights', default=[1.0, 1.3], type=list)
+    parser.add_argument('--loss_weights', default=[1.0, 1.2], type=list)
     parser.add_argument('--time_step', default=5, type=int)
     parser.add_argument('--num_box', default=30, type=int)
     parser.add_argument('--class_index', default=['go', 'stop'], type=list)
