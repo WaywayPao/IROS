@@ -21,7 +21,7 @@ class RiskBenchDataset(torch.utils.data.Dataset):
         self.img_root = img_root
         self.time_step = time_step
         self.use_gt = use_gt
-        self.data_types = ["interactive", "non-interactive", "obstacle", "collision"][:3]
+        self.data_types = ["interactive", "non-interactive", "obstacle", "collision"][:1]
         
         self.VIEW_MASK = cv2.imread("../../utils/mask_120degree.png")[:,:,0].copy()/255
         self.target_points = {}

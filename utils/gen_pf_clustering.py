@@ -13,9 +13,8 @@ pcv.params.debug = None
 
 USE_GT = False
 foldername = "pre_cvt_clus_actor_pf_npy"
-# foldername = "pre_cvt_actor_pf_npy"
-save_img = True
-SAVE_PF = False
+save_img = False
+SAVE_PF = True
 
 data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
@@ -65,9 +64,11 @@ def get_seg_mask(raw_bev_seg, channel=5):
         return one_hot[:,:,1:].numpy()*VIEW_MASK_CPU[:,:,None]
     
     else:
-        one_hot = (np.transpose(raw_bev_seg, (1, 2, 0))).astype(np.float32)
+        one_hot = raw_bev_seg*VIEW_MASK_CPU[:,:,None]
+        # one_hot = (np.transpose(raw_bev_seg, (1, 2, 0))).astype(np.float32)
         # print(one_hot.shape)
-        return one_hot*VIEW_MASK_CPU[:,:,None]
+
+        return one_hot
 
 
         # one_hot = np.zeros((IMG_H, IMG_W, channel), dtype=np.float32)
@@ -86,7 +87,7 @@ def create_roadline_pf(bev_seg):
     roadline = bev_seg[:, :, 1]
     vehicle = bev_seg[:, :, 2]
     pedestrian = bev_seg[:, :, 3]
-    road = road+vehicle+pedestrian
+    road = (road+vehicle+pedestrian)!=0
 
     roadline_pf = torch.zeros((IMG_H, IMG_W), dtype=torch.float32).cuda(0)
 
@@ -218,8 +219,8 @@ def main(_type, scenario_list, cpu_id=0):
             else:
                 seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "cvt_bev-seg", seg_frame)
                 raw_bev_seg = np.load(seg_path)
-                cv2.imwrite("raw_img.png", ((raw_bev_seg[0].reshape(100,200))*255).astype(np.uint8))            
-
+                # cv2.imwrite("raw_img.png", ((np.sum(raw_bev_seg, 0).reshape(100,200))/5*255).astype(np.uint8))
+                raw_bev_seg = np.transpose(raw_bev_seg, (1,2,0))
 
             bev_seg = get_seg_mask(raw_bev_seg[:100])
 
@@ -251,12 +252,12 @@ def main(_type, scenario_list, cpu_id=0):
             frame_box = bev_box[f"{frame_id:08d}"]
             for actor_id in frame_box:
 
-                idx, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id)
+                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id)
 
-                if idx == None:
+                if match_clust == None:
                     obstacle_tensor = torch.from_numpy(np.stack(([0], [0]), 1)).cuda(0)
                 else:
-                    oy, ox = np.where(clust_masks[idx]==255)
+                    oy, ox = np.where(clust_masks[match_clust]==255)
                     obstacle_tensor = torch.from_numpy(np.stack((oy, ox), 1)).cuda(0)
                 
                 actor_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=5.0, KR=1000.0)
@@ -308,10 +309,11 @@ if __name__ == '__main__':
                 "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
         
         save_root = os.path.join(
-            f"/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
+                "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
+ 
         box_3d_root = os.path.join(
             f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
-        goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-23_183928.json"))
+        goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-29_232906.json"))
         # goal_list = json.load(open(f"./target_point_{_type}.json"))
         scenario_list = []
 

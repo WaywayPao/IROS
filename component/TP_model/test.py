@@ -94,16 +94,21 @@ def test(args, model, test_loader, device):
                 seg_inputs = seg_inputs.to(device, dtype=torch.float32)
                 gt_tps = gt_tps.to(device, dtype=torch.float32)
 
-                pred_tps = model(seg_inputs)
-                loss = criterion(pred_tps, gt_tps)
+                # pred_tps = model(seg_inputs)
+                # loss = criterion(pred_tps, gt_tps)
+
+                pred_x, pred_y = model(seg_inputs)
+                loss_x = criterion(pred_x, gt_tps[:, 0].reshape(-1, 1))
+                loss_y = criterion(pred_y, gt_tps[:, 1].reshape(-1, 1))
+                loss = args.alpha_x*loss_x+loss_y
 
                 if args.verbose:
-                    print(gt_tps[0].tolist(), pred_tps[0].tolist())
+                    print(gt_tps[0].tolist(), pred_x[0].item(), pred_y[0].item())
 
-                tp_dict[scenario[0]] = pred_tps[0].tolist()
+                tp_dict[scenario[0]] = [pred_x[0].item(), pred_y[0].item()]
 
                 # statistics
-                running_loss += loss.item()*pred_tps.shape[0]
+                running_loss += loss.item()*pred_x.shape[0]
                 tepoch.set_postfix(loss=loss.item())
         
     elapsed = time.time() - start
@@ -125,6 +130,7 @@ if __name__ == '__main__':
     parser.add_argument('--ckpt_path', type=str, default="")
     parser.add_argument('--use_gt', action='store_true', default=False)
 
+    parser.add_argument('--alpha_x', type=float, default=2.5)
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--gpu', default='0,1,2,3', type=str)

@@ -1,3 +1,3 @@
 	
-	<!-- # gt
-	"./checkpoints/2024-2-28_201302/epoch_89.pth" -->
+	# gt
+	"./checkpoints/2024-2-29_232906/epoch_52.pth"

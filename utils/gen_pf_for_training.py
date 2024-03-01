@@ -8,11 +8,10 @@ import torch
 import PIL.Image as Image
 from collections import OrderedDict
 
-foldername = "pre_cvt_actor_pf_npy"
-# foldername = "actor_pf_npy"
 USE_GT = False
 SAVE_PF = False
 save_img = True
+foldername = "actor_pf_npy" if USE_GT else "pre_cvt_actor_pf_npy"
 
 data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
@@ -85,7 +84,7 @@ def create_roadline_pf(bev_seg):
     roadline = bev_seg[:, :, 1]
     vehicle = bev_seg[:, :, 2]
     pedestrian = bev_seg[:, :, 3]
-    road = road+vehicle+pedestrian
+    road = ((road+vehicle+pedestrian)!=0)
 
     roadline_pf = torch.zeros((IMG_H, IMG_W), dtype=torch.float32).cuda(0)
 
@@ -234,18 +233,10 @@ if __name__ == '__main__':
 
     for _type in data_type:
 
-        if True:
-        # if USE_GT:
-            data_root = os.path.join(
-                "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
-            save_root = os.path.join(
-                f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
-        else:
-            data_root = os.path.join(
-                "/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
-            save_root = os.path.join(
-                f"/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
-
+        data_root = os.path.join(
+            "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
+        save_root = os.path.join(
+            f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
         goal_list = json.load(open(f"./target_point_{_type}.json"))
         scenario_list = []
 

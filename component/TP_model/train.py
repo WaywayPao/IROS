@@ -91,6 +91,8 @@ def train(args, model, train_loader, validation_loader, device):
                     gt_tps = gt_tps.to(device, dtype=torch.float32)
 
                     # pred_tps = model(seg_inputs)
+                    # loss = criterion(pred_tps, gt_tps)
+
                     pred_x, pred_y = model(seg_inputs)
                     loss_x = criterion(pred_x, gt_tps[:, 0].reshape(-1, 1))
                     loss_y = criterion(pred_y, gt_tps[:, 1].reshape(-1, 1))
