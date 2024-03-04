@@ -54,7 +54,6 @@ def get_actor_traj(actor_id, frame_data):
     return actor_traj_list
 
 
-
 def main(_type, scenario_list, cpu_id=0):
 
 

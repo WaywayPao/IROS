@@ -78,11 +78,12 @@ def read_target_point():
 def read_scenario():
 
     scenario_list = []
+    cnt = 0
 
     for _type in data_types:
        
-        data_root = os.path.join(args.data_root, _type)
-        box_3d_root = os.path.join(args.data_root, _type)
+        data_root = os.path.join(args.sample_root, _type)
+        box_3d_root = os.path.join(args.sample_root, _type)
 
         for basic in sorted(os.listdir(data_root)):
             if not basic[:2] in town:
@@ -91,17 +92,38 @@ def read_scenario():
 
             for variant in sorted(os.listdir(basic_path)):
                 variant_path = os.path.join(data_root, basic, "variant_scenario", variant)
-                bev_seg_path = os.path.join(variant_path, "cvt_bev-seg")
+                tracking_path = os.path.join(variant_path, "tracking.npy")
+                tracking_npy = np.load(tracking_path)
+
+                frame_id = 0
+                for sample in tracking_npy:
+                    if sample[0] < args.time_step:
+                        continue
+
+                    if frame_id != sample[0]:
+                        frame_id = str(sample[0])
+                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"all_actor")
+
+                    actor_id = str(sample[1])
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id)
+                    cnt += 1
+
+
+                # bev_seg_path = os.path.join(variant_path, "cvt_bev-seg")
                 
-                bev_box = json.load(open(os.path.join(box_3d_root, basic, "variant_scenario", variant, "bev_box.json")))
+                # bev_box = json.load(open(os.path.join(box_3d_root, basic, "variant_scenario", variant, "bev_box.json")))
 
-                for seg_frame in sorted(os.listdir(bev_seg_path))[4:]:
-                    frame_id = int(seg_frame.split('.')[0])
-                    frame_box = bev_box[f"{frame_id:08d}"]
+                # for seg_frame in sorted(os.listdir(bev_seg_path))[4:]:
+                #     frame_id = int(seg_frame.split('.')[0])
+                #     frame_box = bev_box[f"{frame_id:08d}"]
+                #     scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+'all_actor')
 
-                    for actor_id in frame_box:
-                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id)
-                        
+                #     for actor_id in frame_box:
+                #         scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id)
+                #         cnt += 1
+
+    print(cnt)
+
     return scenario_list
 
 
@@ -116,10 +138,10 @@ def save_roi_json(roi_dict, json_name):
             new_tp_dict[data_type] = OrderedDict()
         if not basic+'_'+variant in new_tp_dict[data_type]:
             new_tp_dict[data_type][basic+'_'+variant] = OrderedDict()
-        if not f"{int(frame_id):08d}" in new_tp_dict[data_type][basic+'_'+variant]:
-            new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id):08d}"] = OrderedDict()
+        if not f"{int(frame_id)}" in new_tp_dict[data_type][basic+'_'+variant]:
+            new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"] = OrderedDict()
         
-        new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id):08d}"][actor_id] = pred_stop
+        new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = pred_stop
 
     for data_type in new_tp_dict:
         with open(f"./ROI/{data_type}_{json_name}.json", "w") as f:
@@ -157,8 +179,13 @@ def test(args, model, scenario_list, target_point_dict, device):
 
                 roadline_pf = npy_file['roadline']
                 attractive_pf = npy_file['attractive']
+                # attractive_pf = np.zeros((100,200))
 
-                gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
+                if actor_id != "all_actor":
+                    gt_pf = ((npy_file["all_actor"]-actor_pf)+roadline_pf+attractive_pf).clip(0.1, 90)
+                else:
+                    gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
+
                 gt_pf = np.expand_dims(gt_pf, 0).astype(np.float32)
                 gt_pf_list.append(torch.from_numpy(gt_pf))
 
@@ -190,6 +217,7 @@ def test(args, model, scenario_list, target_point_dict, device):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--sample_root', default=f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset", type=str)
     parser.add_argument('--data_root', default=f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", type=str)
     parser.add_argument('--method', choices=["vision", "bev_seg", "pf"], type=str, required=True)
     parser.add_argument('--ckpt_path', default="", type=str)
@@ -214,7 +242,7 @@ if __name__ == '__main__':
     
     model = create_model(args, device)
 
-    roi_dict = test(args, model, scenario_list[:500],  target_point_dict, device)
+    roi_dict = test(args, model, scenario_list[:],  target_point_dict, device)
     save_roi_json(roi_dict, json_name=args.ckpt_path.split('/')[-2])
 
 

@@ -1,6 +1,8 @@
 import os
 import json
 import random
+import torch
+import numpy as np
 
 data_type = ["interactive", "non-interactive", "obstacle", "collision"][0:1]
 undone_list = []
@@ -10,9 +12,10 @@ test_town = ["10", "A6", "B3"]   # 515, (47, 11)
 
 is_file = False
 # tgt_name = "bev-seg"
-tgt_name = "pre_cvt_actor_pf_npy"
+# tgt_name = "pre_cvt_actor_pf_npy"
+tgt_name = "pre_cvt_clus_actor_pf_npy"
 # tgt_name = "actor_pf_npy"
-town = train_town+test_town
+town = test_town
 
 # is_file = True
 # tgt_name = "bev_box.json"

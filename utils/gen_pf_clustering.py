@@ -81,7 +81,7 @@ def get_seg_mask(raw_bev_seg, channel=5):
         # return one_hot
     
 
-def create_roadline_pf(bev_seg):
+def create_roadline_pf(bev_seg, ROBOT_RAD=2.0, KR=400.0):
 
     road = bev_seg[:, :, 0]
     roadline = bev_seg[:, :, 1]
@@ -99,7 +99,7 @@ def create_roadline_pf(bev_seg):
         oy, ox = [0], [0]
     obstacle_tensor = torch.from_numpy(np.stack((oy, ox), 1)).cuda(0)
     
-    roadline_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=2.0, KR=400.0)
+    roadline_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=ROBOT_RAD, KR=KR)
 
     return roadline_pf
 
@@ -202,10 +202,10 @@ def main(_type, scenario_list, cpu_id=0):
         bev_seg_path = os.path.join(variant_path, "bev-seg")
         start = time.time()
 
-        for seg_frame in sorted(os.listdir(bev_seg_path))[4:]:
+        for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
             frame_id = int(seg_frame.split('.')[0])
             
-            # if frame_id != 37:
+            # if frame_id != 15:
             #     continue
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
             # if os.path.isfile(save_npy_path):
@@ -219,24 +219,27 @@ def main(_type, scenario_list, cpu_id=0):
             else:
                 seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "cvt_bev-seg", seg_frame)
                 raw_bev_seg = np.load(seg_path)
-                # cv2.imwrite("raw_img.png", ((np.sum(raw_bev_seg, 0).reshape(100,200))/5*255).astype(np.uint8))
+                if save_img:
+                    cv2.imwrite("raw_img.png", 
+                                ((np.sum(raw_bev_seg, 0).reshape(100,200))/np.max(np.sum(raw_bev_seg, 0))*255).astype(np.uint8))
                 raw_bev_seg = np.transpose(raw_bev_seg, (1,2,0))
 
             bev_seg = get_seg_mask(raw_bev_seg[:100])
 
             # get target point
-            gx, gy = goal_list[basic+'_'+variant][f"{frame_id:08d}"]
+            goal_frame = f"{frame_id:08d}" if frame_id>=5 else f"{5:08d}" 
+            gx, gy = goal_list[basic+'_'+variant][goal_frame]
             gx = sx+gx
             gy = IMG_H-gy
             goal_tensor = torch.tensor([gy, gx]).cuda(0)
 
-            roadline_pf = create_roadline_pf(bev_seg.copy())
+            roadline_pf = create_roadline_pf(bev_seg.copy(), ROBOT_RAD=2.0, KR=400.0)
             attractive_pf = create_attractive_pf(goal_tensor)
 
             save_npy = OrderedDict()
-            save_npy['all_actor'] = torch.zeros((IMG_H, IMG_W), dtype=torch.float32).cuda(0)
-            save_npy['roadline'] = roadline_pf
-            save_npy['attractive'] = attractive_pf
+            save_npy['all_actor'] = np.zeros((IMG_H, IMG_W), dtype=np.float32)
+            save_npy['roadline'] = roadline_pf.cpu().numpy()
+            save_npy['attractive'] = attractive_pf.cpu().numpy()
 
             obstacle_mask = ((bev_seg[:,:,2]+bev_seg[:,:,3])*255).astype(np.uint8)
             
@@ -250,19 +253,23 @@ def main(_type, scenario_list, cpu_id=0):
 
 
             frame_box = bev_box[f"{frame_id:08d}"]
+            oy_list = [0]
+            ox_list = [0]
+
             for actor_id in frame_box:
 
-                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id)
+                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.3)
 
                 if match_clust == None:
                     obstacle_tensor = torch.from_numpy(np.stack(([0], [0]), 1)).cuda(0)
                 else:
                     oy, ox = np.where(clust_masks[match_clust]==255)
+                    oy_list.extend(oy)
+                    ox_list.extend(ox)
                     obstacle_tensor = torch.from_numpy(np.stack((oy, ox), 1)).cuda(0)
                 
                 actor_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=5.0, KR=1000.0)
-                save_npy[actor_id] = actor_pf
-                save_npy['all_actor'] = torch.where(save_npy['all_actor']>actor_pf, save_npy['all_actor'], actor_pf)
+                save_npy[actor_id] = actor_pf.cpu().numpy()
 
                 if save_img:
                     plt.close()
@@ -271,7 +278,7 @@ def main(_type, scenario_list, cpu_id=0):
                     ax.set_aspect('equal', adjustable='box')
                     plt.xticks([]*IMG_W)
                     plt.yticks([]*IMG_H)
-                    img = (save_npy[actor_id]+save_npy['roadline']+save_npy['attractive']).cpu().numpy()
+                    img = (save_npy[actor_id]+save_npy['roadline']+save_npy['attractive'])
                     # np.save('teaser.npy', save_npy)
                     cv2.imwrite(f"{basic}-{variant}-{frame_id}-{actor_id}-planning_cv2.png", img/np.max(img)*255)
                     hv = draw_heatmap(img)
@@ -280,6 +287,10 @@ def main(_type, scenario_list, cpu_id=0):
                     plt.axis("equal")
                     plt.savefig(f"{basic}-{variant}-{frame_id}-{actor_id}-planning.png", dpi=300, bbox_inches='tight')
                     exit()
+
+            obstacle_tensor = torch.from_numpy(np.stack((oy_list, ox_list), 1)).cuda(0)    
+            all_actor_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=5.0, KR=1000.0)
+            save_npy['all_actor'] = all_actor_pf.cpu().numpy()
 
             if SAVE_PF:
                 np.save(save_npy_path, save_npy)
@@ -324,6 +335,9 @@ if __name__ == '__main__':
             basic_path = os.path.join(data_root, basic, "variant_scenario")
 
             for variant in sorted(os.listdir(basic_path)):
+
+                # if not (basic == "10_i-1_1_c_f_f_1_rl" and variant == "ClearSunset_low_"):
+                #     continue
                 # if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
                 #     continue
                 # if not (basic == "7_t1-4_0_t_f_r_1_0" and variant == "ClearSunset_low_"):
@@ -334,6 +348,7 @@ if __name__ == '__main__':
                 #     continue
 
                 scenario_list.append((basic, variant))
+
 
         main(_type, scenario_list)
 
