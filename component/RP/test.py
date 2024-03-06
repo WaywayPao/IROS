@@ -80,46 +80,47 @@ def test(args, device, test_loader, model, criterion):
     start = time.time()
     infer_end = time.time()
     
-    with tqdm(test_loader, unit="batch") as tepoch:
+    with torch.no_grad():
+        with tqdm(test_loader, unit="batch") as tepoch:
 
-        for rgb_inputs, trajs, data_attr in tepoch:
-            tepoch.set_description(f"Epoch 1/1")
+            for rgb_inputs, trajs, data_attr in tepoch:
+                tepoch.set_description(f"Epoch 1/1")
 
-            rgb_inputs = rgb_inputs.to(device, dtype=torch.float32)
-            # trajs = trajs.to(device, dtype=torch.float32).reshape(-1, 1, 160, 80)
-            trajs = trajs.to(device, dtype=torch.float32)
-            basic, variant, frame_id, actor_id = data_attr
-            B = rgb_inputs.shape[0]
+                rgb_inputs = rgb_inputs.to(device, dtype=torch.float32)
+                # trajs = trajs.to(device, dtype=torch.float32).reshape(-1, 1, 160, 80)
+                trajs = trajs.to(device, dtype=torch.float32)
+                basic, variant, frame_id = data_attr
+                B = rgb_inputs.shape[0]
 
-            infer_start = time.time()
-            load_time = infer_start - infer_end
-            total_load_time += load_time
-            
-            outputs = model(rgb_inputs)
-            infer_end = time.time()
-            infer_time = infer_end-infer_start
-            total_infer_time += infer_time
-            
-            loss = criterion(outputs, trajs)
+                infer_start = time.time()
+                load_time = infer_start - infer_end
+                total_load_time += load_time
+                
+                outputs = model(rgb_inputs)
+                infer_end = time.time()
+                infer_time = infer_end-infer_start
+                total_infer_time += infer_time
+                
+                loss = criterion(outputs, trajs)
 
 
-            # trajs[:, 0] = trajs[:, 0]*160
-            # trajs[:, 1] = trajs[:, 1]*80
-            # outputs[:, 0] = outputs[:, 0]*160
-            # outputs[:, 1] = outputs[:, 1]*80
-            # print("trajs:", torch.tensor(trajs, dtype=int))
-            # print("outputs:", torch.tensor(outputs, dtype=int))
-            # print("#"*20)
+                # trajs[:, 0] = trajs[:, 0]*160
+                # trajs[:, 1] = trajs[:, 1]*80
+                # outputs[:, 0] = outputs[:, 0]*160
+                # outputs[:, 1] = outputs[:, 1]*80
+                # print("trajs:", torch.tensor(trajs, dtype=int))
+                # print("outputs:", torch.tensor(outputs, dtype=int))
+                # print("#"*20)
 
-            # statistics
-            running_loss += loss.item()*B
-            tepoch.set_postfix(loss=loss.item())
+                # statistics
+                running_loss += loss.item()*B
+                tepoch.set_postfix(loss=loss.item())
 
-            for b in range(B):
-                keys = basic[b]+'#'+variant[b]+'#'+frame_id[b]+'#'+actor_id[b]
-                x, y = outputs[b].tolist()
-                # reachable_point_dict[keys] = [x*160., y*80.]
-                reachable_point_dict[keys] = [x, y]
+                for b in range(B):
+                    keys = basic[b]+'#'+variant[b]+'#'+frame_id[b]
+                    x, y = outputs[b].tolist()
+                    # reachable_point_dict[keys] = [x*160., y*80.]
+                    reachable_point_dict[keys] = [x, y]
 
 
     test_loss = running_loss/(len(test_loader.dataset))
@@ -131,10 +132,9 @@ def test(args, device, test_loader, model, criterion):
     print(f"Total loading time in batch_size={args.batch_size}: {total_load_time:.8f}s")
     print(f"Average inference time in one sample: {total_infer_time/len(test_loader.dataset):.8f}s")
     print(f"Average inference time in one batch: {total_infer_time/(len(test_loader.dataset)/args.batch_size):.8f}s")
-    print("#"*30)
     print()
 
-    return reachable_point_dict
+    return reachable_point_dict, test_loss
 
 
 if __name__ == '__main__':
@@ -151,8 +151,7 @@ if __name__ == '__main__':
 
     criterion = nn.MSELoss()
     # reachable_point_dict = json.load(open("./results/reachable_point_dict.json"))
-    with torch.no_grad():
-        reachable_point_dict = test(args, device, test_loader, model, criterion)
+    reachable_point_dict = test(args, device, test_loader, model, criterion)
 
     with open('./results/reachable_point_dict.json', 'w') as f:
         json.dump(reachable_point_dict, f, indent=4)

@@ -23,7 +23,7 @@ def create_ckpt_result(args):
 
     year, month, day, hour, minute, second = get_current_time()
     formated_time = f"{year}-{month}-{day}_{hour:02d}{minute:02d}{second:02d}"
-    args.ckpt_folder = os.path.join("./ckpts", formated_time)
+    args.ckpt_folder = os.path.join("./checkpoints", formated_time)
     args.log_path = os.path.join("./logs", f"{formated_time}.json")
 
     with open(args.log_path, "w") as f:
@@ -40,7 +40,7 @@ def parse_args():
 
     # dataset
     parser.add_argument("--data_root", type=str, 
-                        default="/media/waywaybao_cs10/DATASET/pf_trajectory_40x20_actor-target=60_v4/interactive")
+                        default="/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data/interactive")
     parser.add_argument('--phase', type=str, choices=['train', 'validation', 'test'], required=True)
     parser.add_argument('--batch_size', default=16,
                         type=int, help='batch size')

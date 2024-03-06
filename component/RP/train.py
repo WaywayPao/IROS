@@ -56,6 +56,8 @@ def write_result(args, epoch, logs):
 
     print(f"lr: {logs['lr']}")
     print(f"train Loss: {logs['train_loss']:.10f}")
+    print(f"validation Loss: {logs['validation_loss']:.10f}")
+    print("#"*30)
     print("")
 
 
@@ -64,7 +66,7 @@ def train(args, device, train_loader, validation_loader, model, criterion, optim
     logs_list = list()
     start = time.time()
 
-    for epoch in range(args.start_epoch, args.epochs):
+    for epoch in range(args.start_epoch, args.epochs+1):
 
         model.train()
         running_loss = 0.0
@@ -98,12 +100,12 @@ def train(args, device, train_loader, validation_loader, model, criterion, optim
         
         scheduler.step(epoch)
         epoch_loss = running_loss/(len(train_loader.dataset))
-
-        logs = {"epoch":epoch, "lr":scheduler.optimizer.param_groups[0]['lr'], "train_loss":epoch_loss}
-        write_result(args, epoch, logs)
         
-        with torch.no_grad():
-            reachable_point_dict = test(args, device, validation_loader, model, criterion)
+        reachable_point_dict, test_loss = test(args, device, validation_loader, model, criterion)
+
+        logs = {"epoch":epoch, "lr":scheduler.optimizer.param_groups[0]['lr'], "train_loss":epoch_loss, "validation_loss":test_loss}
+        write_result(args, epoch, logs)
+
 
         if (epoch+1)%args.save_epoch==0:
             torch.save(model, os.path.join(args.ckpt_folder, f"epoch_{epoch}.pth"))
@@ -126,10 +128,14 @@ if __name__ == '__main__':
     train_loader = DataLoader(dataset=train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     validation_set = PotentialFieldDataset(args.data_root, phase='validation')
     validation_loader = DataLoader(dataset=validation_set, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+    
+    print("Training samples:", len(train_set))
+    print("Validation samples:", len(validation_set))
+    
 
     model = create_model(args, device)
 
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), weight_decay=args.weight_decay, eps=1e-07, amsgrad=False)
     scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.7, min_lr=0.000001)
 
