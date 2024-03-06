@@ -8,7 +8,7 @@ import torch
 import PIL.Image as Image
 from collections import OrderedDict
 
-USE_GT = False
+USE_GT = True
 SAVE_PF = False
 save_img = True
 foldername = "actor_pf_npy" if USE_GT else "pre_cvt_actor_pf_npy"
@@ -154,7 +154,7 @@ def main(_type, scenario_list, cpu_id=0):
 
         for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
             frame_id = int(seg_frame.split('.')[0])            
-            if frame_id != 33:
+            if frame_id != 37:
                 continue
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
 

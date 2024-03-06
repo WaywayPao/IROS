@@ -164,8 +164,8 @@ def test(args, model, scenario_list, target_point_dict, device):
                 # attractive_pf = np.zeros((100,200))
 
                 if actor_id != "all_actor":
-                    # gt_pf = ((npy_file["all_actor"]-actor_pf)+roadline_pf+attractive_pf).clip(0.1, 90)
-                    gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
+                    gt_pf = ((npy_file["all_actor"]-actor_pf)+roadline_pf+attractive_pf).clip(0.1, 90)
+                    # gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
                 else:
                     gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
 

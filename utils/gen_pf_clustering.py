@@ -11,8 +11,9 @@ from plantcv import plantcv as pcv
 # Set global debug behavior to None (default), "print" (to file), or "plot" (Jupyter Notebooks or X11)
 pcv.params.debug = None
 
-USE_GT = False
-foldername = "pre_cvt_clus_actor_pf_npy"
+USE_GT = True
+# foldername = "pre_cvt_clus_actor_pf_npy"
+foldername = "actor_pf_npy"
 save_img = False
 SAVE_PF = True
 
@@ -205,7 +206,7 @@ def main(_type, scenario_list, cpu_id=0):
         for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
             frame_id = int(seg_frame.split('.')[0])
             
-            # if frame_id != 15:
+            # if frame_id != 37:
             #     continue
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
             # if os.path.isfile(save_npy_path):
@@ -215,13 +216,17 @@ def main(_type, scenario_list, cpu_id=0):
             if USE_GT:
                 seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.npy")
                 raw_bev_seg = (np.load(seg_path))
-                # cv2.imwrite("raw_img.png", (raw_bev_seg/6*255).astype(np.uint8))
+                if save_img:
+                    cv2.imwrite("raw_img.png", (raw_bev_seg/6*255).astype(np.uint8))
             else:
                 seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "cvt_bev-seg", seg_frame)
                 raw_bev_seg = np.load(seg_path)
                 if save_img:
-                    cv2.imwrite("raw_img.png", 
-                                ((np.sum(raw_bev_seg, 0).reshape(100,200))/np.max(np.sum(raw_bev_seg, 0))*255).astype(np.uint8))
+                    for c in range(4):
+                        # cv2.imwrite("raw_img.png", 
+                        #             ((np.sum(raw_bev_seg, 0).reshape(100,200))/np.max(np.sum(raw_bev_seg, 0))*255).astype(np.uint8))
+                        cv2.imwrite(f"raw_img_{c}.png", 
+                                    ((raw_bev_seg.reshape(-1, 100,200)[c])*255).astype(np.uint8))
                 raw_bev_seg = np.transpose(raw_bev_seg, (1,2,0))
 
             bev_seg = get_seg_mask(raw_bev_seg[:100])
@@ -250,7 +255,6 @@ def main(_type, scenario_list, cpu_id=0):
                 # cv2.imwrite("obstacle_mask.png", obstacle_mask)
                 # cv2.imwrite(f"clust_img.png", _)
                 # print(len(clust_masks), np.sum(obstacle_mask)/255)
-
 
             frame_box = bev_box[f"{frame_id:08d}"]
             oy_list = [0]
@@ -324,8 +328,13 @@ if __name__ == '__main__':
  
         box_3d_root = os.path.join(
             f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
-        goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-29_232906.json"))
-        # goal_list = json.load(open(f"./target_point_{_type}.json"))
+        
+        
+        ############################################
+        # goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-29_232906.json"))
+        goal_list = json.load(open(f"./target_point_{_type}.json"))
+        ############################################
+
         scenario_list = []
 
         for basic in sorted(os.listdir(data_root)):

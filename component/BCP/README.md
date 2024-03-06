@@ -28,6 +28,7 @@
 	# gt pf
 	2024-2-28_210146 epoch-5
 	
+	# IROS
 	# not-gt + "./checkpoints/2024-2-28_224123/epoch-5.pth"
 	2024-2-29_001439 epoch-39
 	
