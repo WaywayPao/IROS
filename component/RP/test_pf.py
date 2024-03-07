@@ -98,13 +98,18 @@ def read_scenario():
 
                     if frame_id != sample[0]:
                         frame_id = str(sample[0])
-                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"all_actor")
+                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"all_actor"+'#')
+                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"no_actor"+'#')
 
                     actor_id = str(sample[1])
-                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id)
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+'#keep')
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+'#remove')
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#no_road_keep")
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#no_road_remove")
                     cnt += 1
 
-    print(cnt)
+    print("GT ID:", cnt)
+    print("Testing Sample:", len(scenario_list))
 
     return scenario_list[:]
 
@@ -114,7 +119,7 @@ def save_roi_json(roi_dict, json_name):
     new_tp_dict = OrderedDict()
 
     for scenario, pred_rp in roi_dict.items():
-        data_type, basic, variant, frame_id, actor_id = scenario.split('#')
+        data_type, basic, variant, frame_id, actor_id, mode = scenario.split('#')
 
         if not data_type in new_tp_dict:
             new_tp_dict[data_type] = OrderedDict()
@@ -123,7 +128,10 @@ def save_roi_json(roi_dict, json_name):
         if not f"{int(frame_id)}" in new_tp_dict[data_type][basic+'_'+variant]:
             new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"] = OrderedDict()
         
-        new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = pred_rp
+        if mode in ["keep", "remove", "no_road_keep", "no_road_remove"]:
+            new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = pred_rp
+        else:   # actor_id in ["all_actor", "no_actor"]
+            new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = pred_rp
 
     for data_type in new_tp_dict:
         with open(f"./results/{data_type}_{json_name}.json", "w") as f:
@@ -139,7 +147,7 @@ def test(args, model, scenario_list, target_point_dict, device):
     with tqdm(scenario_list, desc='Testing', unit='sample') as pbar:
         # pbar.set_description(f"Testing")
         for sample in pbar:
-            data_type, basic, variant, frame, actor_id = sample.split('#')
+            data_type, basic, variant, frame, actor_id, mode = sample.split('#')
 
             variant_path = os.path.join(args.data_root, data_type, basic, "variant_scenario", variant)
 
@@ -150,7 +158,7 @@ def test(args, model, scenario_list, target_point_dict, device):
                 if args.use_gt:
                     pf_path = os.path.join(variant_path, "actor_pf_npy", f"{frame_id:08d}.npy")
                 else:
-                    pf_path = os.path.join(variant_path, "pre_cvt_clus_actor_pf_npy", f"{frame_id:08d}.npy")
+                    pf_path = os.path.join(variant_path, "new_pre_cvt_clus_actor_pf_npy", f"{frame_id:08d}.npy")
 
                 npy_file = np.load(pf_path, allow_pickle=True).item()
 
@@ -163,16 +171,19 @@ def test(args, model, scenario_list, target_point_dict, device):
                 attractive_pf = npy_file['attractive']
                 # attractive_pf = np.zeros((100,200))
 
-                if actor_id != "all_actor":
-                    gt_pf = ((npy_file["all_actor"]-actor_pf)+roadline_pf+attractive_pf).clip(0.1, 90)
-                    # gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
-                else:
+                if actor_id == "all_actor":
                     gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
-
-                ########################
-                gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
-                ########################
-
+                elif actor_id == "no_actor":
+                    gt_pf = (roadline_pf+attractive_pf).clip(0.1, 90)
+                elif mode == "keep":
+                    gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
+                elif mode == "remove":
+                    gt_pf = ((npy_file["all_actor"]-actor_pf)+roadline_pf+attractive_pf).clip(0.1, 90)
+                elif mode == "no_road_keep":
+                    gt_pf = (actor_pf+attractive_pf).clip(0.1, 90)
+                elif mode == "no_road_remove":
+                    gt_pf = ((npy_file["all_actor"]-actor_pf)+attractive_pf).clip(0.1, 90)
+        
                 gt_pf = np.expand_dims(gt_pf, 0).astype(np.float32)
                 gt_pf_list.append(torch.from_numpy(gt_pf))
 

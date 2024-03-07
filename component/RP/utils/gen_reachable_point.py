@@ -12,18 +12,18 @@ train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
 val_town = ["5_"]
 test_town = ["10", "A6", "B3"]   # 515, (47, 11)
 
-# foldername = "pre_cvt_clus_actor_pf_npy"
+foldername = "new_pre_cvt_clus_actor_pf_npy"
 # save_name = "testing_wo_roadline_reachable_point"
 # save_name = "testing_keep_reachable_point"
-# save_name = "testing_remove_reachable_point"
-# goal_list = json.load(open(f"../../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
-# town = test_town
-
-foldername = "actor_pf_npy"
-save_name = "testing_gt_keep_reachable_point"
-goal_list = json.load(open(f"../../../utils/target_point_interactive.json"))
-# town = train_town+val_town+test_town
+save_name = "new_testing_reachable_point"
+goal_list = json.load(open(f"../../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
 town = test_town
+
+# foldername = "new_actor_pf_npy"
+# save_name = "new_testing_gt_reachable_point"
+# goal_list = json.load(open(f"../../../utils/target_point_interactive.json"))
+# # town = train_town+val_town+test_town
+# town = test_town
 
 VIEW_MASK_CPU = cv2.imread("../../../utils/mask_120degree.png")
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
@@ -67,7 +67,8 @@ def read_scenario():
 
                     if frame_id != sample[0]:
                         frame_id = int(sample[0])
-                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"all_actor")
+                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"all_actor"+"#")
+                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"no_actor"+"#")
 
                     # if not (basic == "10_i-1_1_c_f_f_1_rl" and variant == "ClearSunset_low_" and frame_id == 37):
                     #     continue
@@ -77,10 +78,14 @@ def read_scenario():
                     #     continue
 
                     actor_id = str(sample[1])
-                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id)
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#keep")
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#remove")
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#no_road_keep")
+                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#no_road_remove")
                     cnt += 1
 
-    print(cnt)
+    print("GT ID:", cnt)
+    print("Testing Sample:", len(scenario_list))
 
     return scenario_list[:]
 
@@ -186,7 +191,7 @@ def save_roi_json(occupy_dict, json_name):
     new_rp_dict = OrderedDict()
 
     for scenario, rp in occupy_dict.items():
-        data_type, basic, variant, frame_id, actor_id = scenario.split('#')
+        data_type, basic, variant, frame_id, actor_id, mode = scenario.split('#')
 
         if not data_type in new_rp_dict:
             new_rp_dict[data_type] = OrderedDict()
@@ -194,8 +199,11 @@ def save_roi_json(occupy_dict, json_name):
             new_rp_dict[data_type][basic+'_'+variant] = OrderedDict()
         if not f"{int(frame_id)}" in new_rp_dict[data_type][basic+'_'+variant]:
             new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"] = OrderedDict()
-        
-        new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = [rp[0]-100, 100-rp[1]]
+
+        if mode in ["keep", "remove", "no_road_keep", "no_road_remove"]:
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = [rp[0]-100, 100-rp[1]]
+        else:   # actor_id in ["all_actor", "no_actor"]
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = [rp[0]-100, 100-rp[1]]
 
     for data_type in new_rp_dict:
         with open(f"./{json_name}.json", "w") as f:
@@ -218,7 +226,7 @@ def main():
     occupy_dict = OrderedDict()
     
     for sample in scenario_list:
-        data_type, basic, variant, frame, actor_id = sample.split('#')
+        data_type, basic, variant, frame, actor_id, mode = sample.split('#')
 
         ####################################
         # if actor_id != "all_actor":
@@ -239,13 +247,19 @@ def main():
         roadline_pf = npy_file['roadline']
         attractive_pf = npy_file['attractive']
 
-        if actor_id != "all_actor":
-            gt_pf = ((npy_file["all_actor"]-actor_pf)+roadline_pf+attractive_pf).clip(0.1, 90)
-        else:
+        if actor_id == "all_actor":
             gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
-        
-        # gt_pf = ((actor_pf)+roadline_pf+attractive_pf).clip(0.1, 90)
-        
+        elif actor_id == "no_actor":
+            gt_pf = (roadline_pf+attractive_pf).clip(0.1, 90)
+        elif mode == "keep":
+            gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
+        elif mode == "remove":
+            gt_pf = ((npy_file["all_actor"]-actor_pf)+roadline_pf+attractive_pf).clip(0.1, 90)
+        elif mode == "no_road_keep":
+            gt_pf = (actor_pf+attractive_pf).clip(0.1, 90)
+        elif mode == "no_road_remove":
+            gt_pf = ((npy_file["all_actor"]-actor_pf)+attractive_pf).clip(0.1, 90)
+
         # import cv2
         # print(np.max(gt_pf), gt_pf.shape)
         # cv2.imwrite(f"{actor_id}.png", (gt_pf/90.0*255).astype(np.uint8))

@@ -68,7 +68,6 @@ def save_tp_dict(tp_dict, json_name):
         x, y = pred_tp
         new_tp_dict[data_type][basic+'_'+variant][f"{int(frame_id):08d}"] = [int(x+0.5), int(y+0.5)]
 
-    
     for data_type in new_tp_dict:
         with open(f"./tp_prediction/{data_type}_{json_name}.json", "w") as f:
             json.dump(new_tp_dict[data_type], f, indent=4)

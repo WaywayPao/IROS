@@ -11,11 +11,11 @@ from plantcv import plantcv as pcv
 # Set global debug behavior to None (default), "print" (to file), or "plot" (Jupyter Notebooks or X11)
 pcv.params.debug = None
 
-USE_GT = True
-# foldername = "new_pre_cvt_clus_actor_pf_npy"
-foldername = "new_actor_pf_npy"
+USE_GT = False
+foldername = "new_pcv_pre_cvt_clus_actor_pf_npy"
+# foldername = "new_pcv_actor_pf_npy"
 save_img = False
-SAVE_PF = True
+SAVE_PF = False
 
 data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
@@ -162,11 +162,11 @@ def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
         # actor_area = np.sum(actor_mask==1)/or_cnt
 
         iou = and_cnt/or_cnt
-
         if iou>max_iou and (iou>IOU_thres):
             max_iou = iou
             max_idx = idx
-
+    
+    # print("result:", actor_id, max_idx, max_iou)
     return max_idx, max_iou
 
 
@@ -211,7 +211,7 @@ def main(_type, scenario_list, cpu_id=0):
         for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
             frame_id = int(seg_frame.split('.')[0])
             
-            # if frame_id != 37:
+            # if frame_id != 27:
             #     continue
 
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
@@ -257,9 +257,10 @@ def main(_type, scenario_list, cpu_id=0):
             if np.sum(obstacle_mask) < 20:
                 clust_masks = None
             else:
-                _, clust_masks = pcv.spatial_clustering(mask=obstacle_mask, algorithm="DBSCAN", min_cluster_size=5, max_distance=0.5)
-                # cv2.imwrite("obstacle_mask.png", obstacle_mask)
-                # cv2.imwrite(f"clust_img.png", _)
+                _, clust_masks = pcv.spatial_clustering(mask=obstacle_mask, algorithm="DBSCAN", min_cluster_size=5, max_distance=0.1)
+                if save_img:
+                    # cv2.imwrite("obstacle_mask.png", obstacle_mask)
+                    cv2.imwrite(f"clust_img.png", _)
                 # print(len(clust_masks), np.sum(obstacle_mask)/255)
 
             frame_box = bev_box[f"{frame_id:08d}"]
@@ -268,7 +269,7 @@ def main(_type, scenario_list, cpu_id=0):
 
             for actor_id in frame_box:
 
-                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.12)
+                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.10)
 
                 if match_clust == None:
                     obstacle_tensor = torch.from_numpy(np.stack(([0], [0]), 1)).cuda(0)
@@ -293,7 +294,7 @@ def main(_type, scenario_list, cpu_id=0):
                     cv2.imwrite(f"{basic}-{variant}-{frame_id}-{actor_id}-planning_cv2.png", img/np.max(img)*255)
                     hv = draw_heatmap(img)
                     # plt.plot(sx, sy, "*k")
-                    plt.plot(gx+4, 100-gy-2, "*m", markersize=16)
+                    plt.plot(gx, 100-gy, "*m", markersize=16)
                     plt.axis("equal")
                     plt.savefig(f"{basic}-{variant}-{frame_id}-{actor_id}-planning.png", dpi=300, bbox_inches='tight')
                     exit()
@@ -336,8 +337,8 @@ if __name__ == '__main__':
         
         
         ############################################
-        # goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-29_232906.json"))
-        goal_list = json.load(open(f"./target_point_{_type}.json"))
+        goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-29_232906.json"))
+        # goal_list = json.load(open(f"./target_point_{_type}.json"))
         ############################################
 
         scenario_list = []
@@ -349,6 +350,8 @@ if __name__ == '__main__':
             basic_path = os.path.join(data_root, basic, "variant_scenario")
 
             for variant in sorted(os.listdir(basic_path)):
+                # if not (basic == "10_s-8_0_p_j_f_1_0" and variant == "HardRainSunset_high_"):
+                #     continue
                 # if not (basic == "10_t3-6_1_p_j_f_1_j" and variant == "MidRainyNoon_high_"):
                 #     continue
                 # if not (basic == "10_i-1_1_c_f_f_1_rl" and variant == "ClearSunset_low_"):
