@@ -158,7 +158,7 @@ def test(args, model, scenario_list, target_point_dict, device):
                 if args.use_gt:
                     pf_path = os.path.join(variant_path, "actor_pf_npy", f"{frame_id:08d}.npy")
                 else:
-                    pf_path = os.path.join(variant_path, "new_pre_cvt_clus_actor_pf_npy", f"{frame_id:08d}.npy")
+                    pf_path = os.path.join(variant_path, "pre_cvt_clus_actor_pf_npy", f"{frame_id:08d}.npy")
 
                 npy_file = np.load(pf_path, allow_pickle=True).item()
 

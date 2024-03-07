@@ -12,14 +12,14 @@ train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
 val_town = ["5_"]
 test_town = ["10", "A6", "B3"]   # 515, (47, 11)
 
-foldername = "new_pre_cvt_clus_actor_pf_npy"
+foldername = "pre_cvt_clus_actor_pf_npy"
 # save_name = "testing_wo_roadline_reachable_point"
 # save_name = "testing_keep_reachable_point"
 save_name = "new_testing_reachable_point"
 goal_list = json.load(open(f"../../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
 town = test_town
 
-# foldername = "new_actor_pf_npy"
+# foldername = "actor_pf_npy"
 # save_name = "new_testing_gt_reachable_point"
 # goal_list = json.load(open(f"../../../utils/target_point_interactive.json"))
 # # town = train_town+val_town+test_town
@@ -70,6 +70,8 @@ def read_scenario():
                         scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"all_actor"+"#")
                         scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"no_actor"+"#")
 
+                    # if not (basic == "10_s-8_0_p_j_f_1_0" and variant == "HardRainSunset_high_" and frame_id == 23):
+                    #     continue
                     # if not (basic == "10_i-1_1_c_f_f_1_rl" and variant == "ClearSunset_low_" and frame_id == 37):
                     #     continue
                     # if not (basic == "1_s-4_0_m_l_f_1_s" and variant == "CloudySunset_low_" and frame_id == 55):

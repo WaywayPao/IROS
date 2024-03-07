@@ -11,11 +11,11 @@ from plantcv import plantcv as pcv
 # Set global debug behavior to None (default), "print" (to file), or "plot" (Jupyter Notebooks or X11)
 pcv.params.debug = None
 
-USE_GT = False
-foldername = "new_pcv_pre_cvt_clus_actor_pf_npy"
-# foldername = "new_pcv_actor_pf_npy"
+USE_GT = True
+# foldername = "pre_cvt_clus_actor_pf_npy"
+foldername = "actor_pf_npy"
 save_img = False
-SAVE_PF = False
+SAVE_PF = True
 
 data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
@@ -150,7 +150,11 @@ def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
     points = np.array(points)
     zero_mask = np.zeros((IMG_H, IMG_W), dtype=np.uint8)
     actor_mask = cv2.fillPoly(zero_mask, [points], color=(255)).astype(np.bool)
-
+    
+    x = [p[0] for p in points]
+    y = [p[1] for p in points]
+    actor_centroid = (sum(x) / len(points), sum(y) / len(points))
+    
     # cv2.imwrite(f"mask_{actor_id}.png", actor_mask*255)
 
     for idx, mask in enumerate(clust_masks):
@@ -159,37 +163,26 @@ def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
         and_cnt = np.sum((actor_mask&mask))
         or_cnt = (np.sum((actor_mask|mask))+1)
         
-        # actor_area = np.sum(actor_mask==1)/or_cnt
-
         iou = and_cnt/or_cnt
-        if iou>max_iou and (iou>IOU_thres):
+
+        clus_sum = np.sum(mask==1)
+        actor_sum = np.sum(actor_mask==1)
+        ratio = min(clus_sum, actor_sum)/max(clus_sum, actor_sum)
+        y_list, x_list = np.where(mask!=0)
+        mask_centroid = (sum(x_list) / len(x_list), sum(y_list) / len(y_list))
+        centroid_dis = ((actor_centroid[0]-mask_centroid[0])**2+(actor_centroid[1]-mask_centroid[1])**2)**0.5
+
+        # actor_area = np.sum(actor_mask==1)/or_cnt
+        # print(actor_id, idx, actor_area, iou)
+        # print(actor_id, idx, actor_centroid, mask_centroid, 
+        #       (actor_centroid[0]-mask_centroid[0])**2+(actor_centroid[1]-mask_centroid[1])**2<144, clus_sum, actor_sum, ratio)
+
+        if iou>max_iou and (iou>IOU_thres or (centroid_dis<12 and ratio>0.5)):  # 12pixs == 3meters
             max_iou = iou
             max_idx = idx
     
     # print("result:", actor_id, max_idx, max_iou)
     return max_idx, max_iou
-
-
-
-# def cal_IOU(actor_mask, frame_box):
-    
-#     actor_mask = actor_mask.astype(np.bool)
-#     actor_id = None
-#     max_iou = 0
-
-#     for actor in frame_box:
-
-#         p1, p2, p3, p4 = frame_box[actor]
-#         points = np.array([p1, p2, p3, p4])
-#         mask = cv2.fillPoly(actor_mask.copy(), [points], color=(255)).astype(np.bool)
-
-#         iou = np.sum((actor_mask&mask))/(np.sum((actor_mask|mask))+1)
-
-#         if iou > max_iou:
-#             max_iou = iou
-#             actor_id = actor
-
-#     return actor_id
 
 
 def main(_type, scenario_list, cpu_id=0):
@@ -211,7 +204,7 @@ def main(_type, scenario_list, cpu_id=0):
         for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
             frame_id = int(seg_frame.split('.')[0])
             
-            # if frame_id != 27:
+            # if frame_id != 23:
             #     continue
 
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
@@ -257,11 +250,11 @@ def main(_type, scenario_list, cpu_id=0):
             if np.sum(obstacle_mask) < 20:
                 clust_masks = None
             else:
-                _, clust_masks = pcv.spatial_clustering(mask=obstacle_mask, algorithm="DBSCAN", min_cluster_size=5, max_distance=0.1)
+                _, clust_masks = pcv.spatial_clustering(mask=obstacle_mask, algorithm="DBSCAN", min_cluster_size=5, max_distance=0.5)
                 if save_img:
                     # cv2.imwrite("obstacle_mask.png", obstacle_mask)
                     cv2.imwrite(f"clust_img.png", _)
-                # print(len(clust_masks), np.sum(obstacle_mask)/255)
+                    print(len(clust_masks), np.sum(obstacle_mask)/255)
 
             frame_box = bev_box[f"{frame_id:08d}"]
             oy_list = [0]
@@ -269,7 +262,7 @@ def main(_type, scenario_list, cpu_id=0):
 
             for actor_id in frame_box:
 
-                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.10)
+                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.3)
 
                 if match_clust == None:
                     obstacle_tensor = torch.from_numpy(np.stack(([0], [0]), 1)).cuda(0)
@@ -297,7 +290,7 @@ def main(_type, scenario_list, cpu_id=0):
                     plt.plot(gx, 100-gy, "*m", markersize=16)
                     plt.axis("equal")
                     plt.savefig(f"{basic}-{variant}-{frame_id}-{actor_id}-planning.png", dpi=300, bbox_inches='tight')
-                    exit()
+                    # exit()
 
             obstacle_tensor = torch.from_numpy(np.stack((oy_list, ox_list), 1)).cuda(0)    
             all_actor_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=5.0, KR=1000.0)
@@ -336,10 +329,10 @@ if __name__ == '__main__':
             f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
         
         
-        ############################################
-        goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-29_232906.json"))
-        # goal_list = json.load(open(f"./target_point_{_type}.json"))
-        ############################################
+        if USE_GT:
+            goal_list = json.load(open(f"./target_point_{_type}.json"))
+        else:
+            goal_list = json.load(open(f"../component/TP_model/tp_prediction/{_type}_2024-2-29_232906.json"))
 
         scenario_list = []
 
