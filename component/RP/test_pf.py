@@ -169,6 +169,10 @@ def test(args, model, scenario_list, target_point_dict, device):
                 else:
                     gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
 
+                ########################
+                gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
+                ########################
+
                 gt_pf = np.expand_dims(gt_pf, 0).astype(np.float32)
                 gt_pf_list.append(torch.from_numpy(gt_pf))
 

@@ -12,8 +12,8 @@ from plantcv import plantcv as pcv
 pcv.params.debug = None
 
 USE_GT = True
-# foldername = "pre_cvt_clus_actor_pf_npy"
-foldername = "actor_pf_npy"
+# foldername = "new_pre_cvt_clus_actor_pf_npy"
+foldername = "new_actor_pf_npy"
 save_img = False
 SAVE_PF = True
 
@@ -156,9 +156,14 @@ def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
     for idx, mask in enumerate(clust_masks):
 
         mask = mask.copy().astype(np.bool)
-        iou = np.sum((actor_mask&mask))/(np.sum((actor_mask|mask))+1)
+        and_cnt = np.sum((actor_mask&mask))
+        or_cnt = (np.sum((actor_mask|mask))+1)
+        
+        # actor_area = np.sum(actor_mask==1)/or_cnt
 
-        if iou>max_iou and iou>IOU_thres:
+        iou = and_cnt/or_cnt
+
+        if iou>max_iou and (iou>IOU_thres):
             max_iou = iou
             max_idx = idx
 
@@ -208,6 +213,7 @@ def main(_type, scenario_list, cpu_id=0):
             
             # if frame_id != 37:
             #     continue
+
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
             # if os.path.isfile(save_npy_path):
             #     continue
@@ -262,7 +268,7 @@ def main(_type, scenario_list, cpu_id=0):
 
             for actor_id in frame_box:
 
-                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.3)
+                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.12)
 
                 if match_clust == None:
                     obstacle_tensor = torch.from_numpy(np.stack(([0], [0]), 1)).cuda(0)
@@ -310,15 +316,14 @@ def main(_type, scenario_list, cpu_id=0):
 
 if __name__ == '__main__':
 
+    torch.multiprocessing.set_start_method('spawn')
+
     train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
     val_town = ["5_"]
     test_town = ["10", "A6", "B3"]   # 515, (47, 11)
     town = test_town
 
     for _type in data_type:
-
-        # data_root = os.path.join(
-        #     "/media/waywaybao_cs10/Disk_2/other/new_seg_RiskBench", _type)
         
         data_root = os.path.join(
                 "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data", _type)
@@ -344,7 +349,8 @@ if __name__ == '__main__':
             basic_path = os.path.join(data_root, basic, "variant_scenario")
 
             for variant in sorted(os.listdir(basic_path)):
-
+                # if not (basic == "10_t3-6_1_p_j_f_1_j" and variant == "MidRainyNoon_high_"):
+                #     continue
                 # if not (basic == "10_i-1_1_c_f_f_1_rl" and variant == "ClearSunset_low_"):
                 #     continue
                 # if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
@@ -366,8 +372,6 @@ if __name__ == '__main__':
 
         # cpu_n = 15
         # variant_per_cpu = len(scenario_list)//cpu_n+1
-        # pool_sz = cpu_count()
-
         # pool_sz = cpu_count()
 
         # with Pool(pool_sz) as p:

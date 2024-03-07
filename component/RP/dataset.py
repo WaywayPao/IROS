@@ -18,7 +18,7 @@ class PotentialFieldDataset(Dataset):
         else:
             town = ["10", "A6", "B3"]
 
-        self.reachable_points_dict = json.load(open("./utils/training_reachable_point.json"))
+        self.reachable_points_dict = json.load(open("./utils/training_gt_reachable_point.json"))
 
         for scenario in self.reachable_points_dict:
 
