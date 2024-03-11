@@ -11,11 +11,11 @@ from plantcv import plantcv as pcv
 # Set global debug behavior to None (default), "print" (to file), or "plot" (Jupyter Notebooks or X11)
 pcv.params.debug = None
 
-USE_GT = True
-# foldername = "pre_cvt_clus_actor_pf_npy"
-foldername = "actor_pf_npy"
+USE_GT = False
+foldername = "pre_cvt_clus_actor_pf_npy"
+# foldername = "actor_pf_npy"
 save_img = False
-SAVE_PF = True
+SAVE_PF = False
 
 data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 IMG_H = 100
@@ -142,7 +142,7 @@ def draw_heatmap(data):
 def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
     
     if clust_masks == None:
-        return None, -1
+        return None, -1, None
 
     max_idx = None
     max_iou = -1
@@ -150,6 +150,7 @@ def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
     points = np.array(points)
     zero_mask = np.zeros((IMG_H, IMG_W), dtype=np.uint8)
     actor_mask = cv2.fillPoly(zero_mask, [points], color=(255)).astype(np.bool)
+    actor_sum = np.sum(actor_mask==1)
     
     x = [p[0] for p in points]
     y = [p[1] for p in points]
@@ -166,7 +167,6 @@ def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
         iou = and_cnt/or_cnt
 
         clus_sum = np.sum(mask==1)
-        actor_sum = np.sum(actor_mask==1)
         ratio = min(clus_sum, actor_sum)/max(clus_sum, actor_sum)
         y_list, x_list = np.where(mask!=0)
         mask_centroid = (sum(x_list) / len(x_list), sum(y_list) / len(y_list))
@@ -182,11 +182,13 @@ def cal_IOU(clust_masks, points, actor_id=-1, IOU_thres=0.3):
             max_idx = idx
     
     # print("result:", actor_id, max_idx, max_iou)
-    return max_idx, max_iou
+    return max_idx, max_iou, actor_sum
 
 
 def main(_type, scenario_list, cpu_id=0):
     
+    gt_id = 0
+    match_id = 0
     total_start = time.time()
 
     for idx, (basic, variant) in enumerate(sorted(scenario_list), 1):
@@ -203,8 +205,8 @@ def main(_type, scenario_list, cpu_id=0):
 
         for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
             frame_id = int(seg_frame.split('.')[0])
-            
-            # if frame_id != 23:
+
+            # if frame_id != 37:
             #     continue
 
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
@@ -216,7 +218,7 @@ def main(_type, scenario_list, cpu_id=0):
                 seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.npy")
                 raw_bev_seg = (np.load(seg_path))
                 if save_img:
-                    cv2.imwrite("raw_img.png", (raw_bev_seg/6*255).astype(np.uint8))
+                    cv2.imwrite("raw_img.png", ((raw_bev_seg/6)*255).astype(np.uint8))
             else:
                 seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "cvt_bev-seg", seg_frame)
                 raw_bev_seg = np.load(seg_path)
@@ -261,8 +263,14 @@ def main(_type, scenario_list, cpu_id=0):
             ox_list = [0]
 
             for actor_id in frame_box:
-
-                match_clust, iou = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.3)
+                
+                match_clust, iou, _ = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.3)
+                
+                # if _ != None and _ > 100:
+                #     gt_id += 1
+                #     if match_clust != None:
+                #         match_id += 1
+                # continue
 
                 if match_clust == None:
                     obstacle_tensor = torch.from_numpy(np.stack(([0], [0]), 1)).cuda(0)
@@ -306,7 +314,7 @@ def main(_type, scenario_list, cpu_id=0):
     total_end = time.time()
     print(
         f"CPU ID: {cpu_id:3d} finished!!!\tTotal time: {total_end-total_start:.2f}s")
-
+    print("Match id:", match_id, "\tTotal GT:", gt_id, f"({match_id/gt_id*100:.2f}%)")
 
 if __name__ == '__main__':
 

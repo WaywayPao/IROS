@@ -12,20 +12,18 @@ train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
 val_town = ["5_"]
 test_town = ["10", "A6", "B3"]   # 515, (47, 11)
 
-# foldername = "pre_cvt_clus_actor_pf_npy"
-# # save_name = "testing_wo_roadline_reachable_point"
-# # save_name = "testing_keep_reachable_point"
-# save_name = "new_testing_reachable_point"
-# goal_list = json.load(open(f"../../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
-# town = test_town
-
-foldername = "actor_pf_npy"
-save_name = "new_testing_gt_reachable_point"
-goal_list = json.load(open(f"../../../utils/target_point_interactive.json"))
-# town = train_town+val_town+test_town
+foldername = "pre_cvt_clus_actor_pf_npy"
+save_name = "new_testing_waypoints_list"
+goal_list = json.load(open(f"../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
 town = test_town
 
-VIEW_MASK_CPU = cv2.imread("../../../utils/mask_120degree.png")
+# foldername = "actor_pf_npy"
+# save_name = "new_testing_gt_waypoints_list"
+# goal_list = json.load(open(f"../../../utils/target_point_interactive.json"))
+# # town = train_town+val_town+test_town
+# town = test_town
+
+VIEW_MASK_CPU = cv2.imread("../../utils/mask_120degree.png")
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
 
 sample_root = f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset"
@@ -49,6 +47,7 @@ def read_scenario():
         type_path = os.path.join(sample_root, _type)
 
         for basic in sorted(os.listdir(type_path))[:]:
+            
             if not basic[:2] in town:
                 continue
             basic_path = os.path.join(type_path, basic, "variant_scenario")
@@ -65,10 +64,11 @@ def read_scenario():
                     if sample[0] < 5:
                         continue
 
+
                     if frame_id != sample[0]:
                         frame_id = int(sample[0])
                         scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"all_actor"+"#")
-                        scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"no_actor"+"#")
+                        # scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+"no_actor"+"#")
 
                     # if not (basic == "10_s-8_0_p_j_f_1_0" and variant == "HardRainSunset_high_" and frame_id == 23):
                     #     continue
@@ -80,11 +80,12 @@ def read_scenario():
                     #     continue
 
                     actor_id = str(sample[1])
-                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#keep")
+                    # scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#keep")
                     scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#remove")
-                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#no_road_keep")
-                    scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#no_road_remove")
+                    # scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#no_road_keep")
+                    # scenario_list.append(_type+'#'+basic+'#'+variant+'#'+str(frame_id)+'#'+actor_id+"#no_road_remove")
                     cnt += 1
+
 
     print("GT ID:", cnt)
     print("Testing Sample:", len(scenario_list))
@@ -92,65 +93,11 @@ def read_scenario():
     return scenario_list[:]
 
 
-def _find_RP(gx, gy, potential_map, res=1.0):
-
-    init_potential = float('inf')
-    start_step = 0
-    
-    def DFS(ix, iy, min_potential, step, min_idx=[], min_d=float('inf')):
-
-        is_check[iy, ix] = True
-
-        if step > PIX_PER_METER*20:
-            return min_idx, min_d
-        
-        for i in range(len(MOTION)):
-            motion = MOTION[i]
-            inx = int(ix + motion[0])
-            iny = int(iy + motion[1])
-
-            if iny >= len(potential_map) or inx >= len(potential_map[0]) or inx < 0 or iny < 0:
-                p = float('inf')  # outside area
-            else:
-                p = potential_map[iny, inx]
-
-            if p < min_potential:
-                d = np.hypot(gx - inx, gy - iny)
-                if d < min_d:
-                    min_d = d
-                    min_idx.append([inx, iny])
-
-                if d < res*PIX_PER_METER:
-                    return min_idx, min_d
-                
-                elif not is_check[iny, inx]:
-                    min_idx, min_d = DFS(inx, iny, min_potential=p, step=step+1, min_idx=min_idx, min_d=min_d)
-
-        return min_idx, min_d
-
-    MOTION = [[1, 0], [0, 1], [-1, 0], [1, 1],
-              [-1, 1], [0, -1], [-1, -1], [1, -1]]
-    
-    is_check = np.zeros(potential_map.shape, dtype=bool)
-    # MOTION = [[1, 0], [0, -1], [1, -1]]
-    min_idx1, min_d1 = DFS(ix=Sx, iy=Sy, min_potential=init_potential, step=start_step, min_idx=[], min_d=float('inf'))
-    return min_idx1, min_d1
-
-    is_check = np.zeros(potential_map.shape, dtype=bool)
-    MOTION = [[-1, 0], [0, -1], [-1, -1]]
-    min_idx2, min_d2 = DFS(ix=Sx, iy=Sy, min_potential=init_potential, step=start_step, min_idx=None, min_d=float('inf'))
-
-    if min_d1 < min_d2:
-        return min_idx1, min_d1
-    else:
-        return min_idx2, min_d2
-
-
-def find_RP(gx, gy, potential_map, res=1.0):
+def gen_waypoint(gx, gy, potential_map, res=1.0):
 
     ix = Sx
     iy = Sy
-    point_list = [[ix, iy]]
+    waypoints = [[ix, iy]]
 
     MOTION = [[1, 0], [0, 1], [-1, 0], [1, 1],
               [-1, 1], [0, -1], [-1, -1], [1, -1]]
@@ -180,19 +127,19 @@ def find_RP(gx, gy, potential_map, res=1.0):
         xp = ix
         yp = iy
         d = np.hypot(gx - xp, gy - yp)
-        point_list.append([xp, yp])
+        waypoints.append([xp, yp])
 
         if d < res*PIX_PER_METER:
-            return point_list, point_list[-1]
+            return waypoints
 
-    return point_list, point_list[-1]
+    return waypoints
 
 
 def save_roi_json(occupy_dict, json_name):
 
     new_rp_dict = OrderedDict()
 
-    for scenario, rp in occupy_dict.items():
+    for scenario, wp_list in occupy_dict.items():
         data_type, basic, variant, frame_id, actor_id, mode = scenario.split('#')
 
         if not data_type in new_rp_dict:
@@ -202,10 +149,18 @@ def save_roi_json(occupy_dict, json_name):
         if not f"{int(frame_id)}" in new_rp_dict[data_type][basic+'_'+variant]:
             new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"] = OrderedDict()
 
+        new_wp_list = []
+        for i in range(0, 40, 2):
+            if i < len(wp_list):
+                wp = wp_list[i]
+            else:
+                wp = wp_list[-1]
+            new_wp_list.append([wp[0]-100, 100-wp[1]])
+
         if mode in ["keep", "remove", "no_road_keep", "no_road_remove"]:
-            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = [rp[0]-100, 100-rp[1]]
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = new_wp_list
         else:   # actor_id in ["all_actor", "no_actor"]
-            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = [rp[0]-100, 100-rp[1]]
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = new_wp_list
 
     for data_type in new_rp_dict:
         with open(f"./{json_name}.json", "w") as f:
@@ -230,13 +185,11 @@ def main():
     for sample in scenario_list:
         data_type, basic, variant, frame, actor_id, mode = sample.split('#')
 
-        ####################################
-        # if actor_id != "all_actor":
-        #     continue
-        ####################################
-
         variant_path = os.path.join(data_root, data_type, basic, "variant_scenario", variant)
         frame_id = int(frame)
+
+        # if not (basic == "10_s-8_0_p_j_f_1_0" and variant == "HardRainSunset_high_" and frame_id == 23):
+        #     continue
 
         pf_path = os.path.join(variant_path, foldername, f"{frame_id:08d}.npy")
         npy_file = np.load(pf_path, allow_pickle=True).item()
@@ -262,16 +215,11 @@ def main():
         elif mode == "no_road_remove":
             gt_pf = ((npy_file["all_actor"]-actor_pf)+attractive_pf).clip(0.1, 90)
 
-        # import cv2
-        # print(np.max(gt_pf), gt_pf.shape)
-        # cv2.imwrite(f"{actor_id}.png", (gt_pf/90.0*255).astype(np.uint8))
-        # gt_pf = (attractive_pf).clip(0.1, 90)
-
         gx, gy = goal_list[basic+'_'+variant][f"{frame_id:08d}"]
         gx = Sx+gx
         gy = IMG_H-gy
 
-        waypoints, rp = find_RP(gx, gy, gt_pf, res=1.0)
+        waypoints = gen_waypoint(gx, gy, gt_pf, res=1.0)
 
         if save_img:
             plt.close()
@@ -283,17 +231,18 @@ def main():
             img = gt_pf
             cv2.imwrite(f"{basic}-{variant}-{frame_id}-{actor_id}-planning_cv2.png", img/np.max(img)*255)
             hv = draw_heatmap(img)
-            # print(actor_id, gx, 100-gy, waypoints[0], 100-waypoints[1])
-            # plt.plot(waypoints[0], 100-waypoints[1], "*k", markersize=16)
+            # print(actor_id, gx, 100-gy, min_idx[0], 100-min_idx[1])
+            # plt.plot(min_idx[0], 100-min_idx[1], "*k", markersize=16)
+
             for i in range(len(waypoints)):
-                print(actor_id, gx, 100-gy, waypoints[i][0], 100-waypoints[i][1])
+                # print(actor_id, gx, 100-gy, waypoints[i][0]-100, 100-waypoints[i][1])
                 plt.plot(waypoints[i][0], 100-waypoints[i][1], "*k", markersize=4)
             plt.plot(gx, 100-gy, "*m", markersize=16)
             plt.axis("equal")
             plt.savefig(f"{basic}-{variant}-{frame_id}-{actor_id}-planning.png", dpi=300, bbox_inches='tight')
             # exit()
         
-        wp_dict[sample] = rp
+        wp_dict[sample] = waypoints
 
         print(sample)
 
@@ -304,5 +253,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
