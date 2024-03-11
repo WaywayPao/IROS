@@ -7,20 +7,14 @@ from collections import OrderedDict
 
 save_img = False
 SAVE_RESULT = True
+STEP = 1
+K = 1
 
-train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
-val_town = ["5_"]
-test_town = ["10", "A6", "B3"]   # 515, (47, 11)
+# src_wp_name = f"./results/new_testing_last_waypoints_list_step={STEP}.json"
+# save_name = f"./results/last_wp_raw_score_step={STEP}.json"
 
-foldername = "pre_cvt_clus_actor_pf_npy"
-src_wp_name = "new_testing_waypoints_list.json"
-save_name = "./results/raw_score"
-goal_list = json.load(open(f"../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
-town = test_town
-
-
-sample_root = f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset"
-data_root = "/media/waywaybao_cs10/DATASET/RiskBench_Dataset/other_data"
+src_wp_name = f"./results/new_gt_waypoints_list_step={STEP}.json"
+save_name = f"./results/wp_gt_raw_score_step={STEP}.json"
 
 data_types = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 
@@ -39,19 +33,17 @@ def save_roi_json(score_dict, max_score=None, json_name=None):
 
         new_rp_dict[scenario][f"{int(frame_id)}"][actor_id] = score/max_score
 
-
-    with open(f"./{json_name}.json", "w") as f:
+    with open(f"./{json_name}", "w") as f:
         json.dump(new_rp_dict, f, indent=4)
 
 
-def cal_importance_score(ego_wp, removal_wp, k=20):
+def cal_importance_score(ego_wp, removal_wp, k=K):
 
     def cal_RS(wp1, wp2):
         RS = 0
 
         for i in range(k):
             RS += ((wp1[i][0]-wp2[i][0])**2+(wp1[i][1]-wp2[i][1])**2)**0.5
-
         return RS
 
 
@@ -89,6 +81,7 @@ def main():
     
     for scenario in src_wp_list:
         for frame_id in src_wp_list[scenario]:
+
             ego_wp = src_wp_list[scenario][frame_id]["all_actor"]
 
             for actor_id in src_wp_list[scenario][frame_id]:
@@ -97,7 +90,6 @@ def main():
                 else:
                     removal_wp = src_wp_list[scenario][frame_id][actor_id]
                     actor_id = actor_id.split('#')[0]
-                    
                     raw_score = cal_importance_score(ego_wp, removal_wp)
                     sample = scenario+'#'+frame_id+'#'+actor_id
                     score_dict[sample] = raw_score

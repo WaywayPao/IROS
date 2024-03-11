@@ -7,21 +7,23 @@ from collections import OrderedDict
 
 save_img = False
 SAVE_RESULT = True
+STEP = 1
+STEP_SIZE = 20  #fix
+
 
 train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
 val_town = ["5_"]
 test_town = ["10", "A6", "B3"]   # 515, (47, 11)
 
-foldername = "pre_cvt_clus_actor_pf_npy"
-save_name = "new_testing_waypoints_list"
-goal_list = json.load(open(f"../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
-town = test_town
+# foldername = "pre_cvt_clus_actor_pf_npy"
+# goal_list = json.load(open(f"../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
+foldername = "actor_pf_npy"
+goal_list = json.load(open(f"../../utils/target_point_interactive.json"))
 
-# foldername = "actor_pf_npy"
-# save_name = "new_testing_gt_waypoints_list"
-# goal_list = json.load(open(f"../../../utils/target_point_interactive.json"))
-# # town = train_town+val_town+test_town
-# town = test_town
+save_name = f"new_gt_waypoints_list_step={STEP}.json"
+# save_name = f"new_testing_last_waypoints_list_step={STEP}.json"
+
+town = test_town
 
 VIEW_MASK_CPU = cv2.imread("../../utils/mask_120degree.png")
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
@@ -126,7 +128,8 @@ def gen_waypoint(gx, gy, potential_map, res=1.0):
         iy = miniy
         xp = ix
         yp = iy
-        d = np.hypot(gx - xp, gy - yp)
+        # d = np.hypot(gx - xp, gy - yp)
+        d = float('inf')
         waypoints.append([xp, yp])
 
         if d < res*PIX_PER_METER:
@@ -150,7 +153,7 @@ def save_roi_json(occupy_dict, json_name):
             new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"] = OrderedDict()
 
         new_wp_list = []
-        for i in range(0, 40, 2):
+        for i in range(0, STEP*STEP_SIZE, STEP):
             if i < len(wp_list):
                 wp = wp_list[i]
             else:
@@ -158,12 +161,12 @@ def save_roi_json(occupy_dict, json_name):
             new_wp_list.append([wp[0]-100, 100-wp[1]])
 
         if mode in ["keep", "remove", "no_road_keep", "no_road_remove"]:
-            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = new_wp_list
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = new_wp_list[-1:]
         else:   # actor_id in ["all_actor", "no_actor"]
-            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = new_wp_list
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = new_wp_list[-1:]
 
     for data_type in new_rp_dict:
-        with open(f"./{json_name}.json", "w") as f:
+        with open(f"./results/{json_name}", "w") as f:
             json.dump(new_rp_dict[data_type], f, indent=4)
 
 
@@ -182,7 +185,7 @@ def main():
     scenario_list = read_scenario()
     wp_dict = OrderedDict()
     
-    for sample in scenario_list:
+    for idx, sample in enumerate(scenario_list, 1):
         data_type, basic, variant, frame, actor_id, mode = sample.split('#')
 
         variant_path = os.path.join(data_root, data_type, basic, "variant_scenario", variant)
@@ -201,6 +204,7 @@ def main():
 
         roadline_pf = npy_file['roadline']
         attractive_pf = npy_file['attractive']
+        # attractive_pf = np.zeros((100,200))
 
         if actor_id == "all_actor":
             gt_pf = (actor_pf+roadline_pf+attractive_pf).clip(0.1, 90)
@@ -244,7 +248,7 @@ def main():
         
         wp_dict[sample] = waypoints
 
-        print(sample)
+        print(f"{idx:3d}/{len(scenario_list):3d}", sample)
 
 
     if SAVE_RESULT:
