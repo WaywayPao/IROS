@@ -266,11 +266,11 @@ def main(_type, scenario_list, cpu_id=0):
                 
                 match_clust, iou, _ = cal_IOU(clust_masks, frame_box[actor_id], actor_id, IOU_thres=0.3)
                 
-                if _ != None and _ > 100:
-                    gt_id += 1
-                    if match_clust != None:
-                        match_id += 1
-                continue
+                # if _ != None and _ > 100:
+                #     gt_id += 1
+                #     if match_clust != None:
+                #         match_id += 1
+                # continue
 
                 if match_clust == None:
                     obstacle_tensor = torch.from_numpy(np.stack(([0], [0]), 1)).cuda(0)
