@@ -38,6 +38,9 @@ IMG_W = 200
 Sx = IMG_W//2
 Sy = IMG_H-4*PIX_PER_METER    # the distance from the ego's center to his head
 
+MOTION = [[1, 0], [0, 1], [-1, 0], [1, 1],
+            [-1, 1], [0, -1], [-1, -1], [1, -1]]
+
 
 def read_scenario():
 
@@ -101,9 +104,6 @@ def gen_waypoint(gx, gy, potential_map, res=1.0):
     iy = Sy
     waypoints = [[ix, iy]]
 
-    MOTION = [[1, 0], [0, 1], [-1, 0], [1, 1],
-              [-1, 1], [0, -1], [-1, -1], [1, -1]]
-
     iter = 0
 
     while iter < PIX_PER_METER*20:
@@ -128,8 +128,8 @@ def gen_waypoint(gx, gy, potential_map, res=1.0):
         iy = miniy
         xp = ix
         yp = iy
-        # d = np.hypot(gx - xp, gy - yp)
-        d = float('inf')
+        d = np.hypot(gx - xp, gy - yp)
+        # d = float('inf')
         waypoints.append([xp, yp])
 
         if d < res*PIX_PER_METER:
@@ -161,9 +161,9 @@ def save_roi_json(occupy_dict, json_name):
             new_wp_list.append([wp[0]-100, 100-wp[1]])
 
         if mode in ["keep", "remove", "no_road_keep", "no_road_remove"]:
-            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = new_wp_list[-1:]
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = new_wp_list[:]
         else:   # actor_id in ["all_actor", "no_actor"]
-            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = new_wp_list[-1:]
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = new_wp_list[:]
 
     for data_type in new_rp_dict:
         with open(f"./results/{json_name}", "w") as f:

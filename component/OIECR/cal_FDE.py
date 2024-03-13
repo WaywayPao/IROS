@@ -6,15 +6,15 @@ import matplotlib.pyplot as plt
 from collections import OrderedDict
 
 save_img = False
-SAVE_RESULT = True
+SAVE_RESULT = False
+K = 20
 STEP = 1
-K = 1
 
-# src_wp_name = f"./results/new_testing_last_waypoints_list_step={STEP}.json"
-# save_name = f"./results/last_wp_raw_score_step={STEP}.json"
+src_wp_name = f"./results/new_testing_waypoints_list_step={STEP}.json"
+save_name = f"./results/wp_raw_score_step={STEP}.json"
 
-src_wp_name = f"./results/new_gt_waypoints_list_step={STEP}.json"
-save_name = f"./results/wp_gt_raw_score_step={STEP}.json"
+# src_wp_name = f"./results/new_gt_waypoints_list_step={STEP}.json"
+# save_name = f"./results/wp_gt_raw_score_step={STEP}.json"
 
 data_types = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
 
@@ -99,6 +99,7 @@ def main():
 
         # print(scenario, "Done")
 
+    print(max_score)
     if SAVE_RESULT:
         save_roi_json(score_dict, max_score=max_score, json_name=save_name)
 

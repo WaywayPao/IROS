@@ -90,8 +90,6 @@ def create_roadline_pf(bev_seg, ROBOT_RAD=2.0, KR=400.0):
     pedestrian = bev_seg[:, :, 3]
     road = (road+vehicle+pedestrian)!=0
 
-    roadline_pf = torch.zeros((IMG_H, IMG_W), dtype=torch.float32).cuda(0)
-
     canny = cv2.Canny(road.astype(np.uint8), 0, 1)
     roadline = torch.from_numpy(roadline + canny)
 
@@ -216,11 +214,11 @@ def main(_type, scenario_list, cpu_id=0):
             # get bev segmentation
             if USE_GT:
                 seg_path = os.path.join(variant_path, "bev-seg", f"{frame_id:08d}.npy")
-                raw_bev_seg = (np.load(seg_path))
+                raw_bev_seg = np.load(seg_path)
                 if save_img:
                     cv2.imwrite("raw_img.png", ((raw_bev_seg/6)*255).astype(np.uint8))
             else:
-                seg_path = os.path.join(data_root, basic, "variant_scenario", variant, "cvt_bev-seg", seg_frame)
+                seg_path = os.path.join(variant_path, "cvt_bev-seg", seg_frame)
                 raw_bev_seg = np.load(seg_path)
                 if save_img:
                     for c in range(4):

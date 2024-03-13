@@ -7,15 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
-from dataset import VisionDataLayer, BEV_SEGDataLayer, PFDataLayer
 from models import GCN as Model
-from utils import compute_result, create_folder, write_result
 
 from tqdm import tqdm
-from torchvision import transforms
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-import torch.optim as optim
 import torch
 import torch.nn as nn
 data_types = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
