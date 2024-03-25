@@ -7,10 +7,8 @@ import cv2
 import torch
 import PIL.Image as Image
 from collections import OrderedDict
-from plantcv import plantcv as pcv
-# Set global debug behavior to None (default), "print" (to file), or "plot" (Jupyter Notebooks or X11)
-pcv.params.debug = None
-
+from sklearn.cluster import DBSCAN as DBSCAN
+from sklearn.preprocessing import StandardScaler
 
 IMG_H = 100
 IMG_W = 200
@@ -53,31 +51,32 @@ def get_seg_mask(raw_bev_seg, use_gt=False, channel=5):
     if use_gt:
         new_bev_seg = np.where((raw_bev_seg<6) & (raw_bev_seg>0), raw_bev_seg, 0)
         new_bev_seg = torch.LongTensor(new_bev_seg)
-        one_hot = torch.nn.functional.one_hot(new_bev_seg, channel+1).float()
+        one_hot = torch.nn.functional.one_hot(new_bev_seg, channel+1).permute(2, 0, 1).float()
         
-        return one_hot[:,:,1:].numpy()*VIEW_MASK_CPU[:,:,None]
+        return one_hot[1:,:,:]*VIEW_MASK[None,:,:]
     
     else:
-        one_hot = raw_bev_seg*VIEW_MASK_CPU[:,:,None]
+        new_bev_seg = torch.from_numpy(raw_bev_seg).cuda(0)
+        one_hot = new_bev_seg*VIEW_MASK[None, :,:]
         return one_hot
 
 
 def create_roadline_pf(bev_seg, ROBOT_RAD=2.0, KR=400.0):
 
-    road = bev_seg[:, :, 0]
-    roadline = bev_seg[:, :, 1]
-    vehicle = bev_seg[:, :, 2]
-    pedestrian = bev_seg[:, :, 3]
+    road = bev_seg[0,:,:]
+    roadline = bev_seg[1,:,:]
+    vehicle = bev_seg[2,:,:]
+    pedestrian = bev_seg[3,:,:]
     road = ((road+vehicle+pedestrian)!=0).cpu().numpy()
 
     canny = cv2.Canny(road.astype(np.uint8), 0, 1)
-    roadline = torch.from_numpy(roadline + canny)
+    roadline = roadline+torch.from_numpy(canny).cuda(0)
 
     oy, ox = torch.where(roadline != 0)
     if len(oy) == 0:
-        oy, ox = [0], [0]
-    obstacle_tensor = torch.from_numpy(np.stack((oy, ox), 1)).cuda(0)
-    
+        oy, ox = torch.zeros(1), torch.zeros(1)
+
+    obstacle_tensor = torch.stack((oy, ox), 1).cuda(0)
     roadline_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=ROBOT_RAD, KR=KR)
 
     return roadline_pf
@@ -115,8 +114,7 @@ def Render_PF(gx, gy, bev_seg_list):
     pf_list = list()
 
     for bev_seg in bev_seg_list:
-
-        roadline_pf = create_roadline_pf(bev_seg.copy(), ROBOT_RAD=2.0, KR=400.0)
+        roadline_pf = create_roadline_pf(bev_seg, ROBOT_RAD=2.0, KR=400.0)
         attractive_pf = create_attractive_pf(goal_tensor)
 
         pf = OrderedDict()
@@ -124,33 +122,33 @@ def Render_PF(gx, gy, bev_seg_list):
         pf['roadline'] = roadline_pf
         pf['attractive'] = attractive_pf
 
-        obstacle_mask = ((bev_seg[:,:,2]+bev_seg[:,:,3])*255).astype(torch.uint8)
+        oy, ox = torch.where((bev_seg[2,:,:]+bev_seg[3,:,:])!=0)
 
-        if torch.sum(obstacle_mask) < 20:
-            clust_masks = []
+        if len(ox) < 20:
+            oy, ox = torch.zeros(1), torch.zeros(1)
+            X = torch.stack([oy, ox], 1)
+            max_label = -1
         else:
-            _, clust_masks = pcv.spatial_clustering(mask=obstacle_mask, algorithm="DBSCAN", min_cluster_size=5, max_distance=0.5)
+            X = torch.stack([oy, ox], 1)
+            scaled = StandardScaler().fit_transform(X.cpu().numpy())
+            clustering = DBSCAN(eps=0.5, min_samples=5).fit(scaled)
+            labels = clustering.labels_
+            max_label = np.max(labels)
 
-        oy_list = [0]
-        ox_list = [0]
         idx = 0
-
-        for mask in clust_masks:
-
-            oy, ox = np.where(mask!=0)
-            if len(oy) < 100:
+        for i in range(0, max_label+1):
+            
+            clust = X[labels==i]
+            if len(clust) < 100:
                 continue
 
-            oy_list.extend(oy)
-            ox_list.extend(ox)
-
-            obstacle_tensor = torch.from_numpy(np.stack((oy, ox), 1)).cuda(0)
+            obstacle_tensor = clust.clone().cuda(0)
 
             actor_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=5.0, KR=1000.0)
             pf[idx] = actor_pf
             idx += 1
-
-        obstacle_tensor = torch.from_numpy(np.stack((oy_list, ox_list), 1)).cuda(0)    
+        
+        obstacle_tensor = X.cuda(0)
         all_actor_pf = create_repulsive_potential(obstacle_tensor, ROBOT_RAD=5.0, KR=1000.0)
         pf['all_actor'] = all_actor_pf
 

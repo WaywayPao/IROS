@@ -7,8 +7,8 @@ from collections import OrderedDict
 
 save_img = False
 SAVE_RESULT = True
-STEP = 1
-STEP_SIZE = 20  #fix
+STEP = 20  #fix
+STEP_SIZE = 1
 
 
 train_town = ["1_", "2_", "3_", "5_", "6_", "7_", "A1"] # 1350, (45, 30)
@@ -18,14 +18,14 @@ test_town = ["10", "A6", "B3"]   # 515, (47, 11)
 # foldername = "pre_cvt_clus_actor_pf_npy"
 # goal_list = json.load(open(f"../TP_model/tp_prediction/interactive_2024-2-29_232906.json"))
 foldername = "actor_pf_npy"
-goal_list = json.load(open(f"../../utils/target_point_interactive.json"))
+goal_list = json.load(open(f"/home/waywaybao_cs10/Desktop/Research/IROS/utils/target_point_interactive.json"))
 
-save_name = f"new_gt_waypoints_list_step={STEP}.json"
-# save_name = f"new_testing_last_waypoints_list_step={STEP}.json"
+save_name = f"new_gt_waypoints_list_step={STEP_SIZE}.json"
+# save_name = f"new_testing_last_waypoints_list_step={STEP_SIZE}.json"
 
 town = test_town
 
-VIEW_MASK_CPU = cv2.imread("../../utils/mask_120degree.png")
+VIEW_MASK_CPU = cv2.imread("/home/waywaybao_cs10/Desktop/Research/IROS/utils/mask_120degree.png")
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
 
 sample_root = f"/media/waywaybao_cs10/DATASET/RiskBench_Dataset"
@@ -133,9 +133,22 @@ def gen_waypoint(gx, gy, potential_map, res=1.0):
         waypoints.append([xp, yp])
 
         if d < res*PIX_PER_METER:
-            return waypoints
+            return normalize_waypoint(waypoints)
 
-    return waypoints
+    return normalize_waypoint(waypoints)
+
+
+def normalize_waypoint(wp_list):
+    new_wp_list = []
+    
+    for i in range(0, STEP*STEP_SIZE, STEP_SIZE):
+        if i < len(wp_list):
+            wp = wp_list[i]
+        else:
+            wp = wp_list[-1]
+        new_wp_list.append([wp[0]-100, 100-wp[1]])
+
+    return new_wp_list
 
 
 def save_roi_json(occupy_dict, json_name):
@@ -152,18 +165,10 @@ def save_roi_json(occupy_dict, json_name):
         if not f"{int(frame_id)}" in new_rp_dict[data_type][basic+'_'+variant]:
             new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"] = OrderedDict()
 
-        new_wp_list = []
-        for i in range(0, STEP*STEP_SIZE, STEP):
-            if i < len(wp_list):
-                wp = wp_list[i]
-            else:
-                wp = wp_list[-1]
-            new_wp_list.append([wp[0]-100, 100-wp[1]])
-
         if mode in ["keep", "remove", "no_road_keep", "no_road_remove"]:
-            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = new_wp_list[:]
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id+"#"+mode] = wp_list[:]
         else:   # actor_id in ["all_actor", "no_actor"]
-            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = new_wp_list[:]
+            new_rp_dict[data_type][basic+'_'+variant][f"{int(frame_id)}"][actor_id] = wp_list[:]
 
     for data_type in new_rp_dict:
         with open(f"./results/{json_name}", "w") as f:
@@ -239,8 +244,7 @@ def main():
             # plt.plot(min_idx[0], 100-min_idx[1], "*k", markersize=16)
 
             for i in range(len(waypoints)):
-                # print(actor_id, gx, 100-gy, waypoints[i][0]-100, 100-waypoints[i][1])
-                plt.plot(waypoints[i][0], 100-waypoints[i][1], "*k", markersize=4)
+                plt.plot(waypoints[i][0]+100, 100-waypoints[i][1], "*k", markersize=4)
             plt.plot(gx, 100-gy, "*m", markersize=16)
             plt.axis("equal")
             plt.savefig(f"{basic}-{variant}-{frame_id}-{actor_id}-planning.png", dpi=300, bbox_inches='tight')

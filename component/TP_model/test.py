@@ -44,6 +44,7 @@ def create_model(args, device):
 
     if args.ckpt_path != "":
         model = load_weight(model, args.ckpt_path)
+
     if not isinstance(model, nn.DataParallel):
         model = nn.DataParallel(model)
 

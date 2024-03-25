@@ -37,13 +37,19 @@ def save_roi_json(score_dict, max_score=None, json_name=None):
         json.dump(new_rp_dict, f, indent=4)
 
 
-def cal_importance_score(ego_wp, removal_wp, k=K):
+def cal_importance_score(ego_wp, removal_wp, k):
 
     def cal_RS(wp1, wp2):
-        RS = 0
 
+        # wp1 = np.array(wp1)
+        # wp2 = np.array(wp2)
+        # distances = np.sqrt(np.sum((wp1 - wp2) ** 2, axis=1))
+        # RS = np.sum(distances)
+
+        RS = 0
         for i in range(k):
             RS += ((wp1[i][0]-wp2[i][0])**2+(wp1[i][1]-wp2[i][1])**2)**0.5
+
         return RS
 
 
@@ -90,7 +96,7 @@ def main():
                 else:
                     removal_wp = src_wp_list[scenario][frame_id][actor_id]
                     actor_id = actor_id.split('#')[0]
-                    raw_score = cal_importance_score(ego_wp, removal_wp)
+                    raw_score = cal_importance_score(ego_wp, removal_wp, k=K)
                     sample = scenario+'#'+frame_id+'#'+actor_id
                     score_dict[sample] = raw_score
                     
@@ -99,7 +105,6 @@ def main():
 
         # print(scenario, "Done")
 
-    print(max_score)
     if SAVE_RESULT:
         save_roi_json(score_dict, max_score=max_score, json_name=save_name)
 
