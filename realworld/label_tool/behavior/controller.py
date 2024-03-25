@@ -19,8 +19,8 @@ class MainWindow_controller(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
-        self.video_root = f"../videos"
-        self.behavio_root = f"./behavior"
+        self.video_root = f"../../videos"
+        self.behavio_root = f"./annotation"
         self.phases = ["train", "test"][:]
 
         self.init_phase()
@@ -136,6 +136,7 @@ class MainWindow_controller(QMainWindow):
 
         with open(f"{self.behavio_root}/{self.phase}.json", "w") as f:
             json.dump(behavior_dict, f, indent=4)
+        
         
         # print(set(self.video_list)-set(behavior_dict.keys()))
 
