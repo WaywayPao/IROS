@@ -12,9 +12,8 @@ from plantcv import plantcv as pcv
 pcv.params.debug = None
 
 USE_GT = True
-# foldername = "pre_cvt_clus_actor_pf_npy"
-foldername = "actor_pf_npy"
-save_img = False
+foldername = "actor_pf_npy" if USE_GT else "pre_cvt_clus_actor_pf_npy"
+save_img = True
 SAVE_PF = False
 
 data_type = ['interactive', 'non-interactive', 'collision', 'obstacle'][:1]
@@ -27,8 +26,8 @@ sy = 3*PIX_PER_METER    # the distance from the ego's center to his head
 TARGET = {"roadway":[43,255,123], "roadline":[255,255,255], "vehicle":[120, 2, 255], "pedestrian":[222,134,120]}
 
 # create mask for data preprocessing
-VIEW_MASK_CPU = cv2.imread("./mask_120degree.png")
-# VIEW_MASK_CPU = np.ones((100, 200, 3), dtype=np.uint8)*255
+# VIEW_MASK_CPU = cv2.imread("./mask_120degree.png")
+VIEW_MASK_CPU = np.ones((100, 200, 3), dtype=np.uint8)*255
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
 VIEW_MASK = torch.from_numpy(VIEW_MASK_CPU).cuda(0)
 VIEW_MASK_IDX = torch.where(VIEW_MASK != 0)
@@ -204,8 +203,8 @@ def main(_type, scenario_list, cpu_id=0):
         for seg_frame in sorted(os.listdir(bev_seg_path))[:]:
             frame_id = int(seg_frame.split('.')[0])
 
-            # if frame_id != 37:
-            #     continue
+            if frame_id != 37:
+                continue
 
             save_npy_path = os.path.join(save_npy_folder,f"{frame_id:08d}.npy")
             # if os.path.isfile(save_npy_path):
@@ -293,7 +292,7 @@ def main(_type, scenario_list, cpu_id=0):
                     cv2.imwrite(f"{basic}-{variant}-{frame_id}-{actor_id}-planning_cv2.png", img/np.max(img)*255)
                     hv = draw_heatmap(img)
                     # plt.plot(sx, sy, "*k")
-                    plt.plot(gx, 100-gy, "*m", markersize=16)
+                    # plt.plot(gx, 100-gy, "*m", markersize=16)
                     plt.axis("equal")
                     plt.savefig(f"{basic}-{variant}-{frame_id}-{actor_id}-planning.png", dpi=300, bbox_inches='tight')
                     # exit()
@@ -355,8 +354,8 @@ if __name__ == '__main__':
                 #     continue
                 # if not (basic == "10_i-1_1_c_f_f_1_rl" and variant == "ClearSunset_low_"):
                 #     continue
-                # if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
-                #     continue
+                if not (basic == "10_t2-2_0_c_l_r_1_0" and variant == "CloudySunset_low_"):
+                    continue
                 # if not (basic == "7_t1-4_0_t_f_r_1_0" and variant == "ClearSunset_low_"):
                 #     continue
                 # if not (basic == "1_s-4_0_m_l_f_1_s" and variant == "CloudySunset_low_"):

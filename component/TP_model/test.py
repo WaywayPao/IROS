@@ -78,7 +78,7 @@ def save_tp_dict(tp_dict, json_name):
 def test(args, model, test_loader, device):
 
     tp_dict = OrderedDict()
-    criterion = nn.MSELoss()
+    criterion = nn.L1Loss()
 
     start = time.time()
     model.eval()
@@ -100,7 +100,8 @@ def test(args, model, test_loader, device):
                 pred_x, pred_y = model(seg_inputs)
                 loss_x = criterion(pred_x, gt_tps[:, 0].reshape(-1, 1))
                 loss_y = criterion(pred_y, gt_tps[:, 1].reshape(-1, 1))
-                loss = args.alpha_x*loss_x+loss_y
+                # loss = args.alpha_x*loss_x+loss_y     # for l1 loss
+                loss = ((loss_x)**2+(loss_y)**2)**0.5   # for mse loss
 
                 if args.verbose:
                     print(gt_tps[0].tolist(), pred_x[0].item(), pred_y[0].item())
@@ -110,12 +111,13 @@ def test(args, model, test_loader, device):
                 # statistics
                 running_loss += loss.item()*pred_x.shape[0]
                 tepoch.set_postfix(loss=loss.item())
-        
+
+        print(running_loss/len(dataloader.dataset))
+
     elapsed = time.time() - start
 
     save_tp_dict(tp_dict, json_name=args.ckpt_path.split('/')[-2])
     print(f"Training complete in {int(elapsed//60):4d}m {int(elapsed)%60:2d}s")
-
 
 
 

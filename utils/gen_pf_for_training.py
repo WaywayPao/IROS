@@ -23,8 +23,8 @@ sy = 3*PIX_PER_METER    # the distance from the ego's center to his head
 TARGET = {"roadway":[43,255,123], "roadline":[255,255,255], "vehicle":[120, 2, 255], "pedestrian":[222,134,120]}
 
 # create mask for data preprocessing
-VIEW_MASK_CPU = cv2.imread("./mask_120degree.png")
-# VIEW_MASK_CPU = np.ones((100, 200, 3), dtype=np.uint8)*255
+# VIEW_MASK_CPU = cv2.imread("./mask_120degree.png")
+VIEW_MASK_CPU = np.ones((100, 200, 3), dtype=np.uint8)*255
 VIEW_MASK_CPU = (VIEW_MASK_CPU[:100,:,0] != 0).astype(np.float32)
 # VIEW_MASK = np.ones((IMG_H, IMG_W)) # GT
 VIEW_MASK = torch.from_numpy(VIEW_MASK_CPU).cuda(0)
@@ -206,8 +206,8 @@ def main(_type, scenario_list, cpu_id=0):
                 cv2.imwrite(f"{basic}-{variant}-{frame_id}-planning_cv2.png", img/np.max(img)*255)
                 
                 hv = draw_heatmap(img)
-                plt.plot(sx, sy, "*k")
-                plt.plot(gx, 100-gy, "*m")
+                # plt.plot(sx, sy, "*k")
+                # plt.plot(gx, 100-gy, "*m")
                 plt.axis("equal")
                 plt.savefig(f"{basic}-{variant}-{frame_id}-planning.png", dpi=300, bbox_inches='tight')
                 # exit()
